@@ -9,3 +9,5 @@ data/
 # typically weights and data
 *.pt
 
+# gradio
+.gradio/
