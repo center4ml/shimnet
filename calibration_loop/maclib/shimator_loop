@@ -1,0 +1,33 @@
+" macro shimnet loop "
+" arguments: optimal z1, optimal z2, step in z1 loop, step in z2 loop, half number of steps in z1, half number of steps in z2"
+
+$svfdir='/home/nmrbox/kkazimierczuk/shimnet/data/'
+
+$opti_z1=$1
+$opti_z2=$2
+$step_z1=$3
+$step_z2=$4
+$steps_z1=$5
+$steps_z2=$6
+$nn=''
+$bb=''
+$msg=''
+format((($steps_z1*2+1)*($steps_z2*2+1)*(d1+at)*nt)/3600,5,1):$msg
+$msg='Time: '+$msg+' h'
+banner($msg)
+$j=0
+repeat
+  $i=0
+  $z2=$opti_z2-$steps_z2*$step_z2+$j*$step_z2
+  format($z2,5,1):$bb
+   repeat 
+	$z1=$opti_z1-$steps_z1*$step_z1+$i*$step_z1
+	"su"
+	"go"
+	format($z1,5,1):$nn
+	$filepath=$svfdir + 'z1_'+$nn+'z2_'+$bb+'.fid'
+	svf($filepath,'force')
+	$i=$i+1	
+   until $z1>$opti_z1+$steps_z1*$step_z1-1
+   $j=$j+1
+until $z2>$opti_z2+$steps_z2*$step_z2-1
