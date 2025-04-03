@@ -11,7 +11,7 @@ Python 3.9+
 
 GPU version (for training and inference)
 ```
-pip install -r requirements.txt
+pip install -r requirements-gpu.txt
 ```
 
 CPU version (for inference, not recommended for training)
@@ -159,18 +159,30 @@ dic, data = ng.varian.read(varian_fid_path)
 
 If you want to train the network using the calibration data from our paper, follow the procedure below.
 
-1. Download multiplets database and our SCRF file:
+1. Download multiplets database and our SCRF files:
     ```
     python download_files.py --multiplets --SCRF --no-weights
     ```
+    or directly download from Google Drive and store in `data/` directory: [Response Functions 600MHz](https://drive.google.com/file/d/1J-DsPtaITXU3TFrbxaZPH800U1uIiwje/view?usp=sharing), [Response Functions 700MHz](https://drive.google.com/file/d/113al7A__yYALx_2hkESuzFIDU3feVtNY/view?usp=sharing), [Multiplets data](https://drive.google.com/file/d/1QGvV-Au50ZxaP1vFsmR_auI299Dw-Wrt/view?usp=sharing)
+
 2. Configure run
-    ```bash
-    mkdir -p runs/repeat_paper_training
-    cp configs/shimnet_700.yaml runs/repeat_paper_training/config.yaml
-    ```
+    - For 600MHz spectrometer:
+      ```bash
+      mkdir -p runs/repeat_paper_training_600MHz
+      cp configs/shimnet_600.yaml runs/repeat_paper_training_600MHz/config.yaml
+      ```
+    - For 700 MHz spectrometer:
+      ```bash
+      mkdir -p runs/repeat_paper_training_700MHz
+      cp configs/shimnet_700.yaml runs/repeat_paper_training_700MHz/config.yaml
+      ```
 3. Run training:
     ```
-    python train.py runs/repeat_paper_training
+    python train.py runs/repeat_paper_training_600MHz
     ```
-    Training results will appear in `runs/repeat_paper_training` directory.
+    or
+    ```
+    python train.py runs/repeat_paper_training_700MHz
+    ```
+    Training results will appear in `runs/repeat_paper_training_600MHz` or `runs/repeat_paper_training_700MHz` directory.
 

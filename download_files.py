@@ -14,6 +14,10 @@ ALL_FILES_TO_DOWNLOAD = {
     "SCRF": [{
         "url": "https://drive.google.com/uc?export=download&id=113al7A__yYALx_2hkESuzFIDU3feVtNY",
         "destination": "data/scrf_61_700MHz.pt"
+    },
+    {
+        "url": "https://drive.google.com/uc?export=download&id=1J-DsPtaITXU3TFrbxaZPH800U1uIiwje",
+        "destination": "data/scrf_81_600MHz.pt"
     }],
     "mupltiplets": [{
         "url": "https://drive.google.com/uc?export=download&id=1QGvV-Au50ZxaP1vFsmR_auI299Dw-Wrt",
@@ -38,7 +42,7 @@ def parse_args():
         dest='weights',
         help='Do not download weights file.',
     )
-    parser.add_argument('--SCRF', action='store_true', help='Download SCRF file') 
+    parser.add_argument('--SCRF', action='store_true', help='Download SCRF files - Shim Coil Response Functions') 
     parser.add_argument('--multiplets', action='store_true', help='Download multiplets data file')
     parser.add_argument('--development', action='store_true', help='Download development weights file')
 

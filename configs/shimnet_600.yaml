@@ -23,7 +23,7 @@ data:
   # Paste path to your SCRF file here
   # - Can be absolute path
   # - Can be relative to repository root
-  - data/600hz-2-Lnative/scrf_81.pt
+  - data/scrf_81_600MHz.pt
   atom_groups_data_file: data/multiplets_10000_parsed.txt
   response_function_stretch_min: 1.0
   response_function_stretch_max: 1.0
