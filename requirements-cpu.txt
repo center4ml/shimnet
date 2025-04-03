@@ -1,0 +1,9 @@
+torch==2.4.1+cpu
+torchaudio==2.4.1+cpu
+nmrglue==0.11
+torchdata==0.9.0
+numpy==2.0.2
+matplotlib==3.9.3
+pandas==2.2.3
+tqdm==4.67.1
+hydra-core==1.3.2

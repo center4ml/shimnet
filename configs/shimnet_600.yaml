@@ -1,0 +1,46 @@
+model:
+  name: ShimNetWithSCRF
+  kwargs:
+    rensponse_length: 81
+    resnponse_head_dims:
+    - 128
+training:
+- batch_size: 64
+  learning_rate: 0.001
+  max_iters: 1600000
+- batch_size: 512
+  learning_rate: 0.001
+  max_iters: 25600000
+- batch_size: 512
+  learning_rate: 0.0005
+  max_iters: 12800000
+losses_weights:
+  clean: 1.0
+  noised: 1.0
+  response: 1.0
+data:
+  response_functions_files:
+  # Paste path to your SCRF file here
+  # - Can be absolute path
+  # - Can be relative to repository root
+  - data/600hz-2-Lnative/scrf_81.pt
+  atom_groups_data_file: data/multiplets_10000_parsed.txt
+  response_function_stretch_min: 1.0
+  response_function_stretch_max: 1.0
+  response_function_noise: 0.0
+  multiplicity_j1_min: 0.0
+  multiplicity_j1_max: 15
+  multiplicity_j2_min: 0.0
+  multiplicity_j2_max: 15
+  number_of_signals_min: 2
+  number_of_signals_max: 5
+  thf_min: 0.5
+  thf_max: 2
+  relative_height_min: 0.5
+  relative_height_max: 4
+  frq_step: 0.30048
+logging:
+  step: 1000000
+  num_plots: 32
+metadata:
+  spectrometer_frequency: 600.0

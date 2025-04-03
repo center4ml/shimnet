@@ -1,0 +1,50 @@
+model:
+  name: ShimNetWithSCRF
+  kwargs:
+    rensponse_length: 61
+    resnponse_head_dims:
+    - 128
+training:
+- batch_size: 64
+  learning_rate: 0.001
+  max_iters: 1600000
+- batch_size: 512
+  learning_rate: 0.001
+  max_iters: 6400000
+- batch_size: 512
+  learning_rate: 0.0005
+  max_iters: 12800000
+- batch_size: 800
+  learning_rate: 0.0005
+  max_iters: 12800000
+losses_weights:
+  clean: 1.0
+  noised: 1.0
+  response: 1.0
+data:
+  response_functions_files:
+  # Specify the path to your SCRF file/files here.
+  # - It can be an absolute path.
+  # - It can be relative to the repository root.
+  # Multiple files can be listed in the following rows (YAML list format).
+  - path/to/srcf_file
+  atom_groups_data_file: data/multiplets_10000_parsed.txt
+  response_function_stretch_min: 1.0 # realtive
+  response_function_stretch_max: 1.0 # realtive
+  response_function_noise: 0.0 # arbitrary hight units
+  multiplicity_j1_min: 0.0 # Hz
+  multiplicity_j1_max: 15 # Hz
+  multiplicity_j2_min: 0.0 # Hz
+  multiplicity_j2_max: 15 # Hz
+  number_of_signals_min: 2
+  number_of_signals_max: 5
+  thf_min: 0.5 # arbitrary hight units
+  thf_max: 2 # arbitrary hight units
+  relative_height_min: 0.5 # realtive
+  relative_height_max: 4 # realtive
+  frq_step: 0.34059797	# Hz per point
+logging:
+  step: 1000000
+  num_plots: 32
+metadata: # additional metadata, not used in the training process
+  spectrometer_frequency: 700.0 # MHz
