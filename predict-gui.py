@@ -13,7 +13,10 @@ from predict import Defaults, resample_input_spectrum, resample_output_spectrum,
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None):
+def fast_normalize(x):
+    return x / np.max(x)
+
+def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectra=[], normalize_spectra_for_plotting=True):
     if input_spectrometer_frequency == 0:
         input_spectrometer_frequency = None
     # Load configuration and initialize predictor
@@ -51,8 +54,11 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
 
     # Create Plotly figure
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=input_freqs_input_ppm, y=input_spectrum, mode='lines', name='Input Spectrum'))
-    fig.add_trace(go.Scatter(x=input_freqs_input_ppm, y=output_prediction, mode='lines', name='Corrected Spectrum'))
+    fig.add_trace(go.Scatter(x=input_freqs_input_ppm, y=fast_normalize(input_spectrum) if normalize_spectra_for_plotting else input_spectrum, mode='lines', name='Input Spectrum'))
+    fig.add_trace(go.Scatter(x=input_freqs_input_ppm, y=fast_normalize(output_prediction) if normalize_spectra_for_plotting else output_prediction, mode='lines', name='Corrected Spectrum'))
+    for reference_spectrum_file in reference_spectra:
+        reference_data = np.loadtxt(reference_spectrum_file.name)
+        fig.add_trace(go.Scatter(x=reference_data[:, 0], y=fast_normalize(reference_data[:, 1]) if normalize_spectra_for_plotting else reference_data[:, 1], mode='lines', name=f'Reference Spectrum {Path(reference_spectrum_file.name).stem}'))
     fig.update_layout(title="Spectrum Visualization", xaxis_title="Frequency (ppm)", yaxis_title="Intensity")
 
     return fig, output_file
@@ -84,16 +90,18 @@ with gr.Blocks() as app:
             weights_file = gr.File(label="Weights File (.pt)", height=120, value="weights/shimnet_600MHz.pt")
         
         with gr.Column():
-            input_file = gr.File(label="Input File (.txt | .csv)", height=150)
+            input_file = gr.File(label="Input File (.txt | .csv)", height=120)
             input_spectrometer_frequency = gr.Number(label="Input Spectrometer Frequency (MHz) (0 or empty if the same as in the loaded model)", value=None)
-
+            gr.Markdown("Upload reference spectra files (optional). Reference spectra will be plotted for comparison.")
+            reference_spectra = gr.Files(label="Reference Spectra File(s) (.txt | .csv)", height=120)
+    normalize_spectra_for_plotting = gr.Checkbox(label="Normalize Spectra for Plotting", value=True)
     process_button = gr.Button("Process File")
     plot_output = gr.Plot(label="Spectrum Visualization")
     download_button = gr.File(label="Download Processed File", interactive=False, height=120)
 
     process_button.click(
         process_file,
-        inputs=[input_file, config_file, weights_file, input_spectrometer_frequency],
+        inputs=[input_file, config_file, weights_file, input_spectrometer_frequency, reference_spectra, normalize_spectra_for_plotting],
         outputs=[plot_output, download_button]
     )
 
