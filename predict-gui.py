@@ -121,7 +121,9 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
         xaxis_title="Frequency (ppm)",
         yaxis_title="Intensity"
     )
-
+    # reverse x-axis
+    fig.update_xaxes(autorange="reversed")
+    
     return fig, output_file
 
 # Gradio app
