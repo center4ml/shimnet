@@ -186,3 +186,25 @@ If you want to train the network using the calibration data from our paper, foll
     ```
     Training results will appear in `runs/repeat_paper_training_600MHz` or `runs/repeat_paper_training_700MHz` directory.
 
+## GUI
+
+### GUI installation
+
+GUI requires Python 3.10. Not tested for Python 3.11+
+
+
+After installing ShimNet requirements (CPU/GPU) install GUI requirements:
+
+```bash
+pip install -r requirements-gui.txt
+```
+
+### GUI usage
+
+```bash
+python predict-gui.py
+```
+
+Open your browser and go to `http://127.0.0.1:7860` address to use locally.
+
+Under address given in the terminal message after `Running on public URL:` the tool may be used on other computers
