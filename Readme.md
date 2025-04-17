@@ -7,7 +7,7 @@ Paper: [ShimNet: A neural network for post-acquisition improvement of NMR spectr
 
 ## Installation
 
-Python 3.9+
+Python 3.9+ (3.10+ for GUI)
 
 GPU version (for training and inference)
 ```
@@ -153,8 +153,6 @@ dic, data = ng.varian.read(varian_fid_path)
     python predict.py my_sample1.csv -o my_output --config runs/my_lab_spectrometer_2025/config.yaml --weights runs/my_lab_spectrometer_2025/model.pt
     ```
 
-
-
 ## Repeat training on our data
 
 If you want to train the network using the calibration data from our paper, follow the procedure below.
@@ -188,23 +186,36 @@ If you want to train the network using the calibration data from our paper, foll
 
 ## GUI
 
-### GUI installation
+### Installation
 
-GUI requires Python 3.10. Not tested for Python 3.11+
-
-
-After installing ShimNet requirements (CPU/GPU) install GUI requirements:
+To use the ShimNet GUI, ensure you have Python 3.10 installed (not tested with Python 3.11+). After installing the ShimNet requirements (CPU/GPU), install the additional dependencies for the GUI:
 
 ```bash
 pip install -r requirements-gui.txt
 ```
 
-### GUI usage
+### Launching the GUI
+
+The ShimNet GUI is built using Gradio. To start the application, run:
 
 ```bash
 python predict-gui.py
 ```
 
-Open your browser and go to `http://127.0.0.1:7860` address to use locally.
+Once the application starts, open your browser and navigate to:
 
-Under address given in the terminal message after `Running on public URL:` the tool may be used on other computers
+```
+http://127.0.0.1:7860
+```
+
+to access the GUI locally.
+
+### Sharing the GUI
+
+To make the GUI accessible over the internet, use the `--share` flag:
+
+```bash
+python predict-gui.py --share
+```
+
+A public web address will be displayed in the terminal, which you can use to access the GUI remotely or share with others.
