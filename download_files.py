@@ -30,6 +30,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Download files: weighs (default), SCRF (optional), multiplet data (optional)',
     )
+    parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files')
     parser.add_argument(
         '--weights',
         action='store_true',
@@ -58,9 +59,9 @@ def parse_args():
         
     return args
 
-def download_file(url, target):
+def download_file(url, target, overwrite=False):
     target = Path(target)
-    if target.exists():
+    if target.exists() and not overwrite:
         response = input(f"File {target} already exists. Overwrite? (y/n): ")
         if response.lower() != 'y':
             print(f"Download of {target} cancelled")
@@ -79,16 +80,16 @@ if __name__ == "__main__":
     main_dir = Path(__file__).parent
     if args.weights:
         for file_data in ALL_FILES_TO_DOWNLOAD["weights"]:
-            download_file(file_data["url"], main_dir / file_data["destination"])
+            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
     
     if args.SCRF:
         for file_data in ALL_FILES_TO_DOWNLOAD["SCRF"]:
-            download_file(file_data["url"], main_dir / file_data["destination"])
+            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
     
     if args.multiplets:
         for file_data in ALL_FILES_TO_DOWNLOAD["mupltiplets"]:
-            download_file(file_data["url"], main_dir / file_data["destination"])
+            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
     
     if args.development:
         for file_data in ALL_FILES_TO_DOWNLOAD["development"]:
-            download_file(file_data["url"], main_dir / file_data["destination"])
+            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
