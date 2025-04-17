@@ -5,6 +5,8 @@ Example data can also be downloaded (see below).
 
 Paper: [ShimNet: A neural network for post-acquisition improvement of NMR spectra distorted by magnetic-field inhomogeneity](https://chemrxiv.org/engage/chemrxiv/article-details/67ef866)
 
+Web service: [![Open in Hugging Face Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-md.svg)](https://huggingface.co/spaces/NMR-CeNT-UW/ShimNet)
+
 ## Installation
 
 Python 3.9+ (3.10+ for GUI)
