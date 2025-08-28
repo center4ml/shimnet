@@ -1,4 +1,4 @@
-FROM python:3.10 as build
+FROM python:3.10 AS build
 
 RUN useradd -m -u 1000 user
 USER user
@@ -10,16 +10,18 @@ ENV HOME=/home/user \
 # Set the working directory to the user's home directory
 WORKDIR $HOME/app
 
+# copy installation files
+COPY --chown=user shimnet shimnet/
+COPY --chown=user pyproject.toml ./
+# install shimnet (cpu version + GUI)
+RUN pip install --no-cache-dir .[cpu,gui] --extra-index-url https://download.pytorch.org/whl/cpu 
 
-COPY --chown=user requirements-cpu.txt requirements-gui.txt ./
-RUN pip install --no-cache-dir -r requirements-cpu.txt -r requirements-gui.txt --extra-index-url https://download.pytorch.org/whl/cpu 
-
-FROM build as final
+FROM build AS final
 
 COPY --chown=user . .
 
 # download weights
 RUN python download_files.py --overwrite
 
-CMD [ "python", "./predict-gui.py"]
+CMD [ "python", "./predict-gui.py", "--server_name", "0.0.0.0" ]
 
