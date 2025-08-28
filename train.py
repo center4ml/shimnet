@@ -15,8 +15,8 @@ matplotlib.use('Agg')
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module='torchdata')
 
-from src import models
-from src.generators import get_datapipe
+# from shiment import models
+from shiment.generators import get_datapipe
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if len(sys.argv) < 2:
@@ -32,7 +32,7 @@ else:
     minimum = float("inf")
 
 # initialization        
-model = instantiate({"_target_": f"__main__.models.{config.model.name}", **config.model.kwargs}).to(device)
+model = instantiate({"_target_": f"shimnet.models.{config.model.name}", **config.model.kwargs}).to(device)
 model_weights_file = run_dir / f'model.pt'
 optimizer = torch.optim.Adam(model.parameters())
 optimizer_weights_file = run_dir / f'optimizer.pt'

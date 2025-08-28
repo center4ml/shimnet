@@ -9,17 +9,18 @@ Web service: [![Open in Hugging Face Spaces](https://huggingface.co/datasets/hug
 
 ## Installation
 
-Python 3.9+ (3.10+ for GUI)
+Python 3.10+ is required
 
-GPU version (for training and inference)
-```
-pip install -r requirements-gpu.txt
-```
+You may install CPU-only version for inference only. If you need both training and inference, GPU version is strongly recommended.
 
-CPU version (for inference, not recommended for training)
-```
-pip install -r requirements-cpu.txt --extra-index-url https://download.pytorch.org/whl/cpu
-```
+In both CPU-only and GPU versions you may also install GUI (graphical user interface for inference)
+
+- CPU-only version
+  - with GUI (recommended): `pip install .[cpu,gui] --extra-index-url https://download.pytorch.org/whl/cpu`
+  - without GUI: `pip install .[cpu] --extra-index-url https://download.pytorch.org/whl/cpu`
+- GPU version (strongly recommended for training)
+  - with GUI:  `pip install .[gpu,gui]`
+  - without GUI: `pip install .[gpu]`
 
 ## Usage
 To correct spectra presented in the paper:
@@ -50,7 +51,7 @@ python predict.py sample_data/CresolRed_after_styrene_600MHz.csv -o output --con
 
 ### input format
 
-The spectrum file for reconstruction should be in the format of two columns separated by a space and without the sign at the end of the line at the end of the file(example below):
+The spectrum file for reconstruction should be in the format of two columns separated by a space and without the sign at the end of the line at the end of the file. The first column is frequency in ppm, the second is the intensity. The frequency values ​​should be in ascending order (example below):
 ```csv
 -1.97134	0.0167137	
 -1.97085	-0.00778748	
@@ -188,14 +189,6 @@ If you want to train the network using the calibration data from our paper, foll
 
 ## GUI
 
-### Installation
-
-To use the ShimNet GUI, ensure you have Python 3.10 installed (not tested with Python 3.11+). After installing the ShimNet requirements (CPU/GPU), install the additional dependencies for the GUI:
-
-```bash
-pip install -r requirements-gui.txt
-```
-
 ### Launching the GUI
 
 The ShimNet GUI is built using Gradio. To start the application, run:
@@ -221,3 +214,17 @@ python predict-gui.py --share
 ```
 
 A public web address will be displayed in the terminal, which you can use to access the GUI remotely or share with others.
+
+### GUI inference with Docker
+
+Create docker image:
+```bash
+docker build -t shimnetgui .
+```
+
+Run the container:
+```bash
+docker run -it -p 7860:7860 shimnetgui
+```
+
+The GUI should be working at `http://127.0.0.1:7860`

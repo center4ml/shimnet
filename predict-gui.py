@@ -1,3 +1,4 @@
+import os
 import torch
 torch.set_grad_enabled(False)
 import numpy as np
@@ -6,8 +7,7 @@ from omegaconf import OmegaConf
 import gradio as gr
 import plotly.graph_objects as go
 
-from src.models import ShimNetWithSCRF, Predictor
-from predict import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor
+from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor
 
 # silent deprecation warnings
 import warnings
@@ -168,11 +168,11 @@ with gr.Blocks() as app:
     # Process button click logic
     def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file):
         if model_selection == "600 MHz":
-            config_file = "configs/shimnet_600.yaml"
-            weights_file = "weights/shimnet_600MHz.pt"
+            config_file = os.path.join(os.path.dirname(__file__), "configs/shimnet_600.yaml")
+            weights_file = os.path.join(os.path.dirname(__file__), "weights/shimnet_600MHz.pt")
         elif model_selection == "700 MHz":
-            config_file = "configs/shimnet_700.yaml"
-            weights_file = "weights/shimnet_700MHz.pt"
+            config_file = os.path.join(os.path.dirname(__file__), "configs/shimnet_700.yaml")
+            weights_file = os.path.join(os.path.dirname(__file__), "weights/shimnet_700MHz.pt")
         else:
             config_file = config_file.name
             weights_file = weights_file.name
@@ -186,14 +186,3 @@ with gr.Blocks() as app:
     )
 
 app.launch(share=args.share, server_name=args.server_name)
-
-# '#636efa',
-#  '#EF553B',
-#  '#00cc96',
-#  '#ab63fa',
-#  '#FFA15A',
-#  '#19d3f3',
-#  '#FF6692',
-#  '#B6E880',
-#  '#FF97FF',
-#  '#FECB52'

@@ -6,15 +6,14 @@ from pathlib import Path
 import sys, os
 from omegaconf import OmegaConf
 
-from src.models import ShimNetWithSCRF, Predictor
+from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor
+
 
 # silent deprecation warnings
 # https://github.com/pytorch/pytorch/issues/97207#issuecomment-1494781560
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-class Defaults:
-    SCALE = 16.0
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -26,23 +25,6 @@ def parse_args():
     args = parser.parse_args()
     return args
     
-# functions
-def resample_input_spectrum(input_freqs, input_spectrum, Mhz_per_point):
-    """resample input spectrum to match the model's frequency range"""
-    freqs = np.arange(input_freqs.min(), input_freqs.max(), Mhz_per_point)
-    spectrum = np.interp(freqs, input_freqs, input_spectrum)
-    return freqs, spectrum
-
-def resample_output_spectrum(input_freqs, freqs, prediction):
-    """resample prediction to match the input spectrum's frequency range"""
-    prediction = np.interp(input_freqs, freqs, prediction)
-    return prediction
-
-def initialize_predictor(config, weights_file):
-    model = ShimNetWithSCRF(**config.model.kwargs)
-    predictor = Predictor(model, weights_file)
-    return predictor
-
 # run
 if __name__ == "__main__":
     args = parse_args()
