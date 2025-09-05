@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module='torchdata')
 
 # from shiment import models
-from shiment.generators import get_datapipe
+from shimnet.generators import get_datapipe
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if len(sys.argv) < 2:
