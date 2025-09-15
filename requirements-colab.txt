@@ -1,0 +1,2 @@
+torchdata==0.9.0
+hydra-core
