@@ -5,7 +5,9 @@
 # training outputs
 runs/
 # data files
-data/
+# data/ # not in workshop, but in main repo
+data/multiplets_10000_parsed.txt
+
 # typically weights and data
 *.pt
 
