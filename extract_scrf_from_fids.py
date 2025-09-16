@@ -11,14 +11,14 @@ from tqdm import tqdm
 
 def run():
     # ===== Wczytywanie zmiennych środowiskowych =====
-    data_dir = os.getenv("DATA_DIR", "./shimator7")
-    opti_fid_path = os.getenv("OPTI_FID_PATH", "./shimator7/opti_total6.fid")
+    data_dir = os.getenv("DATA_DIR", "./SCRF_extraction")
+    opti_fid_path = os.getenv("OPTI_FID_PATH", "./OPTI_INPUT_SPECTRA/shimmed_lineshape.fid")
 
-    spectra_file = os.getenv("SPECTRA_FILE", "./sample_run/total.npy")
-    spectra_file_names = os.getenv("SPECTRA_FILE_NAMES", "./sample_run/total.csv")
-    opi_spectrum_file = os.getenv("OPI_SPECTRUM_FILE", "./sample_run/opti.npy")
-    responses_file = os.getenv("RESPONSES_FILE", "./sample_run/scrf_total6_1.pt")
-    losses_file = os.getenv("LOSSES_FILE", "./sample_run/losses_total6_1.pt")
+    spectra_file = os.getenv("SPECTRA_FILE", "./deconvolved_data/scrf_workshop.npy")
+    spectra_file_names = os.getenv("SPECTRA_FILE_NAMES", "./deconvolved_data/scrf_workshop_names.csv")
+    opi_spectrum_file = os.getenv("OPI_SPECTRUM_FILE", "./deconvolved_data/opti_spectrum.npy")
+    responses_file = os.getenv("RESPONSES_FILE", "./deconvolved_data/scrf_workshop.pt")
+    losses_file = os.getenv("LOSSES_FILE", "./deconvolved_data/losses_scrf_workshop.pt")
 
     # Tworzenie katalogów na wyniki
     for file_path in [spectra_file, spectra_file_names, opi_spectrum_file, responses_file]:

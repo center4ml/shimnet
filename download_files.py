@@ -23,6 +23,10 @@ ALL_FILES_TO_DOWNLOAD = {
         "url": "https://drive.google.com/uc?export=download&id=1QGvV-Au50ZxaP1vFsmR_auI299Dw-Wrt",
         "destination": "data/multiplets_10000_parsed.txt"
     }],
+    "workshops": [{
+        "url": "https://drive.google.com/uc?export=download&id=1gj60yazOVF2P81Vtupju_Elt9TKY6hm0",
+        "destination": "SCRF_extraction/fids.zip"
+    }],
     "development": []
 }
 
@@ -45,6 +49,7 @@ def parse_args():
     )
     parser.add_argument('--SCRF', action='store_true', help='Download SCRF files - Shim Coil Response Functions') 
     parser.add_argument('--multiplets', action='store_true', help='Download multiplets data file')
+    parser.add_argument('--workshops', action='store_true', dest='workshops', help='DDownload workshops data files')
     parser.add_argument('--development', action='store_true', help='Download development weights file')
 
     parser.add_argument('--all', action='store_true', help='Download all available files')
@@ -56,7 +61,7 @@ def parse_args():
         args.SCRF = True 
         args.multiplets = True
         args.development = True
-        
+        args.workshops = True
     return args
 
 def download_file(url, target, overwrite=False):

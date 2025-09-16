@@ -25,20 +25,39 @@ data:
   # - Can be relative to repository root
   - data/scrf_81_600MHz.pt
   atom_groups_data_file: data/multiplets_10000_parsed.txt
-  response_function_stretch_min: 1.0
-  response_function_stretch_max: 1.0
-  response_function_noise: 0.0
+  # number of points in the spectrum
+  pixels: 2048
+  # frequency step size [Hz]
+  frq_step: 0.30048
+  # range of the spectrum where multiplets are located (relative)
+  relative_frequency_min: -0.4
+  relative_frequency_max: 0.4
+  # number of multiplets in the spectrum
+  number_of_signals_min: 2
+  number_of_signals_max: 5
+  # spectrum height component range:
+  thf_min: 0.5
+  thf_max: 2
+  # multiplet height component range:
+  relative_height_min: 0.5
+  relative_height_max: 4
+  # spectrum width component range [Hz]:
+  spectrum_width_min: 0.2
+  spectrum_width_max: 1
+  # multiplet width component range:
+  relative_width_min: 1
+  relative_width_max: 2
+  # Gaussian fraction in multiplet shape:
+  trf_min: 0
+  trf_max: 1
+  # multiplet spacing
   multiplicity_j1_min: 0.0
   multiplicity_j1_max: 15
   multiplicity_j2_min: 0.0
   multiplicity_j2_max: 15
-  number_of_signals_min: 2
-  number_of_signals_max: 5
-  thf_min: 0.5
-  thf_max: 2
-  relative_height_min: 0.5
-  relative_height_max: 4
-  frq_step: 0.30048
+  # Gaussian noise
+  spectrum_noise_min: 0.
+  spectrum_noise_max: 0.015625
 logging:
   step: 1000000
   num_plots: 32
