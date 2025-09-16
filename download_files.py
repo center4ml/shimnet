@@ -25,7 +25,7 @@ ALL_FILES_TO_DOWNLOAD = {
     }],
     "workshops": [{
         "url": "https://drive.google.com/uc?export=download&id=1gj60yazOVF2P81Vtupju_Elt9TKY6hm0",
-        "destination": "SCRF_extraction/fids.zip"
+        "destination": "SCRF_extraction/SCRF_extraction.zip"
     }],
     "development": []
 }
@@ -95,6 +95,10 @@ if __name__ == "__main__":
         for file_data in ALL_FILES_TO_DOWNLOAD["mupltiplets"]:
             download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
     
+    if args.workshops:
+        for file_data in ALL_FILES_TO_DOWNLOAD["workshops"]:
+            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
+
     if args.development:
         for file_data in ALL_FILES_TO_DOWNLOAD["development"]:
             download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
