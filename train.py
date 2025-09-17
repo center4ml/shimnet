@@ -78,7 +78,7 @@ def evaluate_model(stage=0, epoch=0):
                 plt.savefig(plot_dir / f"{i:03d}_attention.png")
             
             plt.close("all")
-
+print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss")
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
         model.load_state_dict(torch.load(model_weights_file, weights_only=True))
