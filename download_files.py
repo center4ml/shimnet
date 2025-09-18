@@ -20,7 +20,7 @@ ALL_FILES_TO_DOWNLOAD = {
         "url": "https://drive.google.com/uc?export=download&id=1J-DsPtaITXU3TFrbxaZPH800U1uIiwje",
         "destination": "data/scrf_81_600MHz.pt"
     }],
-    "mupltiplets": [{
+    "multiplets": [{
         "url": "https://drive.google.com/uc?export=download&id=1QGvV-Au50ZxaP1vFsmR_auI299Dw-Wrt",
         "destination": "data/multiplets_10000_parsed.txt"
     }],
@@ -51,7 +51,7 @@ def parse_args():
     )
     parser.add_argument('--SCRF', action='store_true', help='Download SCRF files - Shim Coil Response Functions') 
     parser.add_argument('--multiplets', action='store_true', help='Download multiplets data file')
-    parser.add_argument('--workshops', action='store_true', dest='workshops', help='DDownload workshops data files')
+    parser.add_argument('--workshops', action='store_true', dest='workshops', help='Download workshops data files')
     parser.add_argument('--development', action='store_true', help='Download development weights file')
 
     parser.add_argument('--all', action='store_true', help='Download all available files')
@@ -80,7 +80,7 @@ def download_file(url, target, overwrite=False, unzip=False):
             with zipfile.ZipFile(tmp_file, 'r') as z:
                 target.mkdir(parents=True, exist_ok=True)
                 z.extractall(target)
-            print(f"Extracted archive to {target}")
+            print(f"Downloaded and extracted archive to: {target}")
         else: # download single file and store at target location
             if target.exists() and not overwrite:
                 response = input(f"File {target} already exists. Overwrite? (y/n): ")
