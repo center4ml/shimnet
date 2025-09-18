@@ -5,8 +5,11 @@
 # training outputs
 runs/
 # data files
-# data/ # not in workshop, but in main repo
+# data/ # in workshops we have some files in data/ can't ignore the whole folder
 data/multiplets_10000_parsed.txt
+
+# workshop data for SCRF extraction
+SCRF_extraction/
 
 # typically weights and data
 *.pt

@@ -1,4 +1,5 @@
 import urllib.request
+import zipfile
 from pathlib import Path
 import argparse
 
@@ -25,7 +26,8 @@ ALL_FILES_TO_DOWNLOAD = {
     }],
     "workshops": [{
         "url": "https://drive.google.com/uc?export=download&id=1gj60yazOVF2P81Vtupju_Elt9TKY6hm0",
-        "destination": "SCRF_extraction/SCRF_extraction.zip"
+        "destination": "SCRF_extraction",
+        "unzip": True
     }],
     "development": []
 }
@@ -64,17 +66,30 @@ def parse_args():
         args.workshops = True
     return args
 
-def download_file(url, target, overwrite=False):
+def download_file(url, target, overwrite=False, unzip=False):
     target = Path(target)
-    if target.exists() and not overwrite:
-        response = input(f"File {target} already exists. Overwrite? (y/n): ")
-        if response.lower() != 'y':
-            print(f"Download of {target} cancelled")
-            return
-    target.parent.mkdir(parents=True, exist_ok=True)
     try:
-        urllib.request.urlretrieve(url, target)
-        print(f"Downloaded {target}")
+        if unzip: # download archive and unzip to target directory
+            if target.exists() and not overwrite:
+                response = input(f"Directory {target} already exists. Overwrite? (y/n): ")
+                if response.lower() != 'y':
+                    print(f"Download of {target} cancelled")
+                    return
+            target.mkdir(parents=True, exist_ok=True)
+            tmp_file, _ = urllib.request.urlretrieve(url)
+            with zipfile.ZipFile(tmp_file, 'r') as z:
+                target.mkdir(parents=True, exist_ok=True)
+                z.extractall(target)
+            print(f"Extracted archive to {target}")
+        else: # download single file and store at target location
+            if target.exists() and not overwrite:
+                response = input(f"File {target} already exists. Overwrite? (y/n): ")
+                if response.lower() != 'y':
+                    print(f"Download of {target} cancelled")
+                    return
+            target.parent.mkdir(parents=True, exist_ok=True)
+            urllib.request.urlretrieve(url, target)
+            print(f"Downloaded {target}")
     except Exception as e:
         print(f"Failed to download file from {url}:\n {e}")
 
@@ -83,22 +98,8 @@ if __name__ == "__main__":
     args = parse_args()
 
     main_dir = Path(__file__).parent
-    if args.weights:
-        for file_data in ALL_FILES_TO_DOWNLOAD["weights"]:
-            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
-    
-    if args.SCRF:
-        for file_data in ALL_FILES_TO_DOWNLOAD["SCRF"]:
-            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
-    
-    if args.multiplets:
-        for file_data in ALL_FILES_TO_DOWNLOAD["mupltiplets"]:
-            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
-    
-    if args.workshops:
-        for file_data in ALL_FILES_TO_DOWNLOAD["workshops"]:
-            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
 
-    if args.development:
-        for file_data in ALL_FILES_TO_DOWNLOAD["development"]:
-            download_file(file_data["url"], main_dir / file_data["destination"], args.overwrite)
+    for files_group_name, files_data in ALL_FILES_TO_DOWNLOAD.items(): # iterate over "weights", "SCRF", "multiplets", "development"
+        if getattr(args, files_group_name, False):
+            for file_data in files_data:
+                download_file(file_data["url"], main_dir / file_data["destination"], overwrite=args.overwrite, unzip=file_data.get("unzip", False))
