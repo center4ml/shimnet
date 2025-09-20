@@ -28,6 +28,10 @@ ALL_FILES_TO_DOWNLOAD = {
         "url": "https://drive.google.com/uc?export=download&id=1gj60yazOVF2P81Vtupju_Elt9TKY6hm0",
         "destination": "SCRF_extraction",
         "unzip": True
+    },
+    {
+         "url": "https://drive.google.com/uc?export=download&id=1UIF01mMSmEbVGaspfRstMUKK6ZCKpla-",
+        "destination": "weights/shimnet_singlets_600MHz.pt"
     }],
     "development": []
 }
