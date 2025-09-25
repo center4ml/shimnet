@@ -30,7 +30,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectrum=None):
+def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectrum=None, scale=None):
     if input_spectrometer_frequency == 0:
         input_spectrometer_frequency = None
     # Load configuration and initialize predictor
@@ -53,7 +53,9 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
 
     # Scale and process spectrum
     spectrum_tensor = torch.tensor(spectrum).float()
-    scaling_factor = Defaults.SCALE / spectrum_tensor.max()
+    if scale is None:
+        scale = Defaults.SCALE
+    scaling_factor = scale / spectrum_tensor.max()
     spectrum_tensor *= scaling_factor
     prediction = predictor(spectrum_tensor).numpy()
     prediction /= scaling_factor
@@ -141,12 +143,20 @@ with gr.Blocks() as app:
             )
             config_file = gr.File(label="Custom Config File (.yaml)", visible=False, height=120)
             weights_file = gr.File(label="Custom Weights File (.pt)", visible=False, height=120)
+
+            with gr.Accordion("Advanced", open=False):
+                scale_input = gr.Number(
+                    label="Scale (Intensity Normalization)",
+                    value=Defaults.SCALE,
+                    info="Adjust the scaling factor for intensity normalization. Default is 16.",
+                )
         
         with gr.Column():
             input_file = gr.File(label="Input File (.txt | .csv)", height=120)
             input_spectrometer_frequency = gr.Number(label="Input Spectrometer Frequency (MHz) (0 or empty if the same as in the loaded model)", value=None)
             gr.Markdown("Upload reference spectrum files (optional). Reference spectrum will be plotted for comparison.")
             reference_spectrum_file = gr.File(label="Reference Spectra File (.txt | .csv)", height=120)
+    
     
     process_button = gr.Button("Process File")
     plot_output = gr.Plot(label="Spectrum Visualization")
@@ -166,7 +176,7 @@ with gr.Blocks() as app:
     )
 
     # Process button click logic
-    def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file):
+    def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale):
         if model_selection == "600 MHz":
             config_file = "configs/shimnet_600.yaml"
             weights_file = "weights/shimnet_600MHz.pt"
@@ -177,11 +187,18 @@ with gr.Blocks() as app:
             config_file = config_file.name
             weights_file = weights_file.name
 
-        return process_file(input_file.name, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file.name if reference_spectrum_file else None)
+        return process_file(
+            input_file.name,
+            config_file,
+            weights_file,
+            input_spectrometer_frequency,
+            reference_spectrum_file.name if reference_spectrum_file else None,
+            scale
+        )
 
     process_button.click(
         process_file_with_model,
-        inputs=[input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file],
+        inputs=[input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale_input],
         outputs=[plot_output, download_button]
     )
 

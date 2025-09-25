@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is
 
 class Defaults:
     SCALE = 16.0
+    SUFFIX = "_processed"
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -23,6 +24,8 @@ def parse_args():
     parser.add_argument("--weights", help="model weights")
     parser.add_argument("-o", "--output_dir", default=".", help="Output directory")
     parser.add_argument("--input_spectrometer_frequency", default=None, type=float, help="spectrometer frequency in MHz (input sample collection frequency). Empty if the same as in the training data")
+    parser.add_argument("--suffix", default=Defaults.SUFFIX, help=f"Output file suffix (default: {Defaults.SUFFIX})")
+    parser.add_argument("--intensity_scale", default=Defaults.SCALE, type=float, help=f"Intensity scaling factor (default: {Defaults.SCALE})")
     args = parser.parse_args()
     return args
     
@@ -70,7 +73,7 @@ if __name__ == "__main__":
         
         spectrum = torch.tensor(spectrum).float()
         # scale height of the spectrum
-        scaling_factor = Defaults.SCALE / spectrum.max()
+        scaling_factor = args.intensity_scale / spectrum.max()
         spectrum *= scaling_factor
 
         # correct spectrum
@@ -83,7 +86,7 @@ if __name__ == "__main__":
         output_prediction = resample_output_spectrum(input_freqs_model_ppm, freqs, prediction)
 
         # save result
-        output_file = output_dir / f"{Path(input_file).stem}_processed{Path(input_file).suffix}"
+        output_file = output_dir / f"{Path(input_file).stem}{args.suffix}{Path(input_file).suffix}"
 
         np.savetxt(output_file, np.column_stack((input_freqs_input_ppm, output_prediction)))
         print(f"saved to {output_file}")
