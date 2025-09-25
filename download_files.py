@@ -38,8 +38,8 @@ ALL_FILES_TO_DOWNLOAD = {
         "destination": "weights/shimnet_600_wide-hm_constant-hs.pt"
     },
     {
-         "url": "https://drive.google.com/uc?export=download&id=1HAVWTn5R3DcjSOLhzSsocnxEgUNalBVu",
-        "destination": "weights/shimnet_600_wide-hm_constant-hs.pt"
+         "url": "https://drive.google.com/uc?export=download&id=1mEZ_Ea59x2sCNnqyLkfWpESVO-yf4SX0",
+        "destination": "weights/shimnet_600_wide-hm_standard-hs.pt"
     }],
     "development": []
 }
