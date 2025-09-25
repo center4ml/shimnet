@@ -32,6 +32,14 @@ ALL_FILES_TO_DOWNLOAD = {
     {
          "url": "https://drive.google.com/uc?export=download&id=1UIF01mMSmEbVGaspfRstMUKK6ZCKpla-",
         "destination": "weights/shimnet_singlets_600MHz.pt"
+    },
+    {
+         "url": "https://drive.google.com/uc?export=download&id=1HAVWTn5R3DcjSOLhzSsocnxEgUNalBVu",
+        "destination": "weights/shimnet_600_wide-hm_constant-hs.pt"
+    },
+    {
+         "url": "https://drive.google.com/uc?export=download&id=1HAVWTn5R3DcjSOLhzSsocnxEgUNalBVu",
+        "destination": "weights/shimnet_600_wide-hm_constant-hs.pt"
     }],
     "development": []
 }

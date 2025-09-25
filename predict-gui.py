@@ -30,7 +30,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectrum=None, scale=None):
+def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectrum=None, scale=None, suffix=None):
     if input_spectrometer_frequency == 0:
         input_spectrometer_frequency = None
     # Load configuration and initialize predictor
@@ -65,7 +65,9 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
 
     # Prepare output data for download
     output_data = np.column_stack((input_freqs_input_ppm, output_prediction))
-    output_file = f"{Path(input_file).stem}_processed{Path(input_file).suffix}"
+    if suffix is None:
+        suffix = Defaults.SUFFIX
+    output_file = f"{Path(input_file).stem}{suffix}{Path(input_file).suffix}"
     np.savetxt(output_file, output_data)
 
     # Create Plotly figure
@@ -146,9 +148,14 @@ with gr.Blocks() as app:
 
             with gr.Accordion("Advanced", open=False):
                 scale_input = gr.Number(
-                    label="Scale (Intensity Normalization)",
+                    label="Intensity Scale",
                     value=Defaults.SCALE,
-                    info="Adjust the scaling factor for intensity normalization. Default is 16.",
+                    info=f"Adjust the scaling factor for intensity normalization. Default is {Defaults.SCALE}.",
+                )
+                suffix_input = gr.Textbox(
+                    label="Output File Suffix",
+                    value=Defaults.SUFFIX,
+                    info=f"Suffix to add to processed output filenames. Default is '{Defaults.SUFFIX}'.",
                 )
         
         with gr.Column():
@@ -176,7 +183,7 @@ with gr.Blocks() as app:
     )
 
     # Process button click logic
-    def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale):
+    def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale, suffix):
         if model_selection == "600 MHz":
             config_file = "configs/shimnet_600.yaml"
             weights_file = "weights/shimnet_600MHz.pt"
@@ -193,12 +200,13 @@ with gr.Blocks() as app:
             weights_file,
             input_spectrometer_frequency,
             reference_spectrum_file.name if reference_spectrum_file else None,
-            scale
+            scale,
+            suffix
         )
 
     process_button.click(
         process_file_with_model,
-        inputs=[input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale_input],
+        inputs=[input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale_input, suffix_input],
         outputs=[plot_output, download_button]
     )
 
