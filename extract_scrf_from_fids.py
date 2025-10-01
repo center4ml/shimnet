@@ -136,22 +136,22 @@ def run():
         else:
             scrfs = np.array(scrfs_loaded)
         scrfs = np.squeeze(scrfs)
-        print(f"[INFO] Załadowano SCRFs: shape={scrfs.shape}")
+        print(f"[INFO] SCRFs loaded: shape={scrfs.shape}")
     except Exception as e:
-        raise RuntimeError(f"Nie udało się wczytać SCRF: {e}")
+        raise RuntimeError(f"SCRF loading failed: {e}")
 
     try:
         spectra = np.load(spectra_file, allow_pickle=True)
-        print(f"[INFO] Załadowano widma: shape={spectra.shape}")
+        print(f"[INFO] Spectra loaded: shape={spectra.shape}")
     except Exception as e:
-        raise RuntimeError(f"Nie udało się wczytać total.npy: {e}")
+        raise RuntimeError(f"total.npy loading failed: {e}")
 
     n_scrf = scrfs.shape[0]
     n_spec = spectra.shape[0]
     n_show = min(10, n_scrf, n_spec)
 
     if n_show == 0:
-        raise ValueError("Brak danych do wyświetlenia.")
+        raise ValueError("No data to display.")
 
     indices = random.sample(range(n_spec), n_show)
 
