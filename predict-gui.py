@@ -1,4 +1,3 @@
-import os
 import torch
 torch.set_grad_enabled(False)
 import numpy as np
@@ -30,7 +29,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectrum=None):
+def process_file(input_file, config_file, weights_file, input_spectrometer_frequency=None,reference_spectrum=None, scale=None, suffix=None):
     if input_spectrometer_frequency == 0:
         input_spectrometer_frequency = None
     # Load configuration and initialize predictor
@@ -53,7 +52,9 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
 
     # Scale and process spectrum
     spectrum_tensor = torch.tensor(spectrum).float()
-    scaling_factor = Defaults.SCALE / spectrum_tensor.max()
+    if scale is None:
+        scale = Defaults.SCALE
+    scaling_factor = scale / spectrum_tensor.max()
     spectrum_tensor *= scaling_factor
     prediction = predictor(spectrum_tensor).numpy()
     prediction /= scaling_factor
@@ -63,7 +64,9 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
 
     # Prepare output data for download
     output_data = np.column_stack((input_freqs_input_ppm, output_prediction))
-    output_file = f"{Path(input_file).stem}_processed{Path(input_file).suffix}"
+    if suffix is None:
+        suffix = Defaults.SUFFIX
+    output_file = f"{Path(input_file).stem}{suffix}{Path(input_file).suffix}"
     np.savetxt(output_file, output_data)
 
     # Create Plotly figure
@@ -141,6 +144,18 @@ with gr.Blocks() as app:
             )
             config_file = gr.File(label="Custom Config File (.yaml)", visible=False, height=120)
             weights_file = gr.File(label="Custom Weights File (.pt)", visible=False, height=120)
+
+            with gr.Accordion("Advanced", open=False):
+                scale_input = gr.Number(
+                    label="Intensity Scale",
+                    value=Defaults.SCALE,
+                    info=f"Adjust the scaling factor for intensity normalization. Default is {Defaults.SCALE}.",
+                )
+                suffix_input = gr.Textbox(
+                    label="Output File Suffix",
+                    value=Defaults.SUFFIX,
+                    info=f"Suffix to add to processed output filenames. Default is '{Defaults.SUFFIX}'.",
+                )
         
         with gr.Column():
             input_file = gr.File(label="Input File (.txt | .csv)", height=120)
@@ -166,7 +181,7 @@ with gr.Blocks() as app:
     )
 
     # Process button click logic
-    def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file):
+    def process_file_with_model(input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale, suffix):
         if model_selection == "600 MHz":
             config_file = os.path.join(os.path.dirname(__file__), "configs/shimnet_600.yaml")
             weights_file = os.path.join(os.path.dirname(__file__), "weights/shimnet_600MHz.pt")
@@ -177,11 +192,19 @@ with gr.Blocks() as app:
             config_file = config_file.name
             weights_file = weights_file.name
 
-        return process_file(input_file.name, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file.name if reference_spectrum_file else None)
+        return process_file(
+            input_file.name,
+            config_file,
+            weights_file,
+            input_spectrometer_frequency,
+            reference_spectrum_file.name if reference_spectrum_file else None,
+            scale,
+            suffix
+        )
 
     process_button.click(
         process_file_with_model,
-        inputs=[input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file],
+        inputs=[input_file, model_selection, config_file, weights_file, input_spectrometer_frequency, reference_spectrum_file, scale_input, suffix_input],
         outputs=[plot_output, download_button]
     )
 
