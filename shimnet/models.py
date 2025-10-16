@@ -1,11 +1,11 @@
 import torch
 
 class ConvEncoder(torch.nn.Module):
-    def __init__(self, hidden_dim=64, output_dim=None, dropout=0, kernel_size=7):
+    def __init__(self, hidden_dim=64, output_dim=None, dropout=0, kernel_size=7, input_dim=1):
         super().__init__()
         if output_dim is None:
             output_dim = hidden_dim
-        self.conv4 = torch.nn.Conv1d(1, hidden_dim, kernel_size)
+        self.conv4 = torch.nn.Conv1d(input_dim, hidden_dim, kernel_size)
         self.conv3 = torch.nn.Conv1d(hidden_dim, hidden_dim, kernel_size)
         self.conv2 = torch.nn.Conv1d(hidden_dim, hidden_dim, kernel_size)
         self.conv1 = torch.nn.Conv1d(hidden_dim, output_dim, kernel_size)
@@ -63,10 +63,11 @@ class ShimNetWithSCRF(torch.nn.Module):
         bottleneck_dim=64,
         rensponse_length=61,
         resnponse_head_dims=[128],
-        decoder_hidden_dims=64
+        decoder_hidden_dims=64,
+        input_dim=1
         ):
         super().__init__()
-        self.encoder = ConvEncoder(hidden_dim=encoder_hidden_dims, output_dim=bottleneck_dim, dropout=encoder_dropout)
+        self.encoder = ConvEncoder(hidden_dim=encoder_hidden_dims, output_dim=bottleneck_dim, dropout=encoder_dropout, input_dim=input_dim)
         self.query = torch.nn.Parameter(torch.empty(1, 1, bottleneck_dim))
         torch.nn.init.xavier_normal_(self.query)
 
