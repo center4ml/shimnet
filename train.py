@@ -31,6 +31,28 @@ if (run_dir / "train.txt").is_file():
 else:
     minimum = float("inf")
 
+# prepare spectra for evaluation
+extra_spectra_for_evaluation = {}
+frq_step = config.data.get("frq_step") or config.metadata.get("frq_step")
+model_ppm_per_point = frq_step / config.metadata.spectrometer_frequency
+
+for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
+    spectrum_file = Path(spectra_data.path)
+    spectrum_freqs_input_ppm, spectrum = np.loadtxt(spectrum_file).T
+
+    spectrometer_frequency = spectra_data.get("spectrometer_frequency")
+    if spectrometer_frequency is None: # spectrometer frequency unknown, assume the same as the model
+        spectrum_freqs = spectrum_freqs_input_ppm
+    else:
+        spectrum_freqs_model_ppm = spectrum_freqs_input_ppm * spectrometer_frequency / config.metadata.spectrometer_frequency
+        spectrum_freqs = np.arange(spectrum_freqs_model_ppm.min(), spectrum_freqs_model_ppm.max(), model_ppm_per_point)
+        spectrum = np.interp(spectrum_freqs, spectrum_freqs_model_ppm, spectrum)
+
+    extra_spectra_for_evaluation[Path(spectrum_file).stem] = {
+        'frequencies': spectrum_freqs,
+        'spectrum': spectrum,
+    }
+
 # initialization        
 model = instantiate({"_target_": f"shimnet.models.{config.model.name}", **config.model.kwargs}).to(device)
 model_weights_file = run_dir / f'model.pt'
@@ -78,6 +100,44 @@ def evaluate_model(stage=0, epoch=0):
                 plt.savefig(plot_dir / f"{i:03d}_attention.png")
             
             plt.close("all")
+
+    # evaluate extra spectra
+    if len(extra_spectra_for_evaluation) > 0:
+        extra_spectra_dir = plot_dir / "extra_spectra"
+        extra_spectra_dir.mkdir(exist_ok=True, parents=True)
+    for spectrum_name, spectrum_data in extra_spectra_for_evaluation.items():
+        spectrum = torch.tensor(spectrum_data['spectrum']).to(device)
+        with torch.no_grad():
+            out = model(spectrum.unsqueeze(0))
+            noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu().squeeze(0)
+
+        plt.figure(figsize=(30,6))
+        plt.plot(spectrum_data['frequencies'], spectrum.cpu().numpy())
+        plt.plot(spectrum_data['frequencies'], out['denoised'].cpu().squeeze(0).numpy())
+        plt.savefig(extra_spectra_dir / f"{spectrum_name}_clean.png")
+        np.savetxt(extra_spectra_dir / f"{spectrum_name}_clean.csv", np.column_stack((spectrum_data['frequencies'], out['denoised'].cpu().squeeze(0).numpy())))
+
+        plt.figure(figsize=(30,6))
+        plt.plot(spectrum_data['frequencies'], spectrum.cpu().numpy())
+        plt.plot(spectrum_data['frequencies'], noised_est.numpy())
+        plt.savefig(extra_spectra_dir / f"{spectrum_name}_noised.png")
+        np.savetxt(extra_spectra_dir / f"{spectrum_name}_noised.csv", np.column_stack((spectrum_data['frequencies'], noised_est.numpy())))
+
+        # Save response and attention if available
+        if 'response' in out:
+            plt.figure(figsize=(10,6))
+            plt.plot(out['response'].cpu().squeeze(0).numpy())
+            plt.savefig(extra_spectra_dir / f"{spectrum_name}_response.png")
+            np.savetxt(extra_spectra_dir / f"{spectrum_name}_response.csv", out['response'].cpu().squeeze(0).numpy())
+
+        if "attention" in out:
+            plt.figure(figsize=(10, 6))
+            plt.plot(out['attention'].cpu().numpy())
+            plt.savefig(extra_spectra_dir / f"{spectrum_name}_attention.png")
+            np.savetxt(extra_spectra_dir / f"{spectrum_name}_attention.csv", out['attention'].cpu().numpy())
+        
+        plt.close("all")
+
 
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
