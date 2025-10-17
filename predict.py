@@ -14,10 +14,6 @@ from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_ou
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
 
-class Defaults:
-    SCALE = 16.0
-    SUFFIX = "_processed"
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_files", help="Input files", nargs="+") 
