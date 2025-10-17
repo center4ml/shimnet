@@ -1,6 +1,7 @@
 import numpy as np
 
 from .models import ShimNetWithSCRF, Predictor
+from .multiscale import MultiscaleFeatureExtractor
 
 class Defaults:
     SCALE = 16.0
@@ -20,5 +21,9 @@ def resample_output_spectrum(input_freqs, freqs, prediction):
 
 def initialize_predictor(config, weights_file):
     model = ShimNetWithSCRF(**config.model.kwargs)
-    predictor = Predictor(model, weights_file)
+    if config.get("multiscale_features_as_input", False):
+        preprocessor = MultiscaleFeatureExtractor(**config.multiscale_features)
+    else:
+        preprocessor = None
+    predictor = Predictor(model, weights_file, preprocessor)
     return predictor
