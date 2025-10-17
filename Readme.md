@@ -213,7 +213,7 @@ To make the GUI accessible over the internet, use the `--share` flag:
 python predict-gui.py --share
 ```
 
-A public web address will be displayed in the terminal, which you can use to access the GUI remotely or share with others.
+A public web address will be displayed in the terminal, which you can use to access the GUI remotely or share with others. The webservice is available for 72 hours after launching ([see gradio doc on app sharing](https://www.gradio.app/4.44.1/guides/sharing-your-app)).
 
 ### GUI inference with Docker
 

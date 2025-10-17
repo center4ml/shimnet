@@ -15,3 +15,6 @@ data/
 # package building
 build/
 *shimnet.egg-info/
+
+# bash loops
+run_trainings.sh

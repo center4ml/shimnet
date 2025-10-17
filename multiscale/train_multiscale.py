@@ -18,6 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module='torchdata')
 # from shiment import models
 from shimnet.generators import get_datapipe
 from shimnet.multiscale import MultiscaleFeatureExtractor
+from shimnet.predict_utils import Defaults as PredictDefaults
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if len(sys.argv) < 2:
@@ -36,6 +37,7 @@ else:
 extra_spectra_for_evaluation = {}
 frq_step = config.data.get("frq_step") or config.metadata.get("frq_step")
 model_ppm_per_point = frq_step / config.metadata.spectrometer_frequency
+evaluation_spectra_normalization = config.logging.get("evaluation_spectra_normalization", PredictDefaults.SCALE)
 
 for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
     spectrum_file = Path(spectra_data.path)
@@ -49,6 +51,9 @@ for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
         spectrum_freqs = np.arange(spectrum_freqs_model_ppm.min(), spectrum_freqs_model_ppm.max(), model_ppm_per_point)
         spectrum = np.interp(spectrum_freqs, spectrum_freqs_model_ppm, spectrum)
 
+    if evaluation_spectra_normalization is not None:
+        spectrum = spectrum * (evaluation_spectra_normalization / np.max(spectrum))
+
     extra_spectra_for_evaluation[Path(spectrum_file).stem] = {
         'frequencies': spectrum_freqs,
         'spectrum': spectrum,
@@ -60,7 +65,15 @@ model_weights_file = run_dir / f'model.pt'
 optimizer = torch.optim.Adam(model.parameters())
 optimizer_weights_file = run_dir / f'optimizer.pt'
 
+# initialize multiscale feature extractor
 multiscale_feature_extractor = MultiscaleFeatureExtractor(**config.multiscale_features)
+def prepare_model_input(noised_spectra_batch):
+    """Prepare model input, applying multiscale feature extraction if configured."""
+    if config.get("multiscale_features_as_input", False):
+        return multiscale_feature_extractor.extract_features(noised_spectra_batch)
+    else:
+        return noised_spectra_batch
+
 
 def evaluate_model(stage=0, epoch=0):
     plot_dir = run_dir / "plots" / f"{stage}_{epoch}"
@@ -78,7 +91,7 @@ def evaluate_model(stage=0, epoch=0):
     batch = next(iter(pipe))
 
     with torch.no_grad():
-        out = model(batch['noised_spectrum'].to(device))
+        out = model(prepare_model_input(batch['noised_spectrum']).to(device))
         noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu()
 
         for i in range(num_plots):
@@ -109,22 +122,23 @@ def evaluate_model(stage=0, epoch=0):
         extra_spectra_dir = plot_dir / "extra_spectra"
         extra_spectra_dir.mkdir(exist_ok=True, parents=True)
     for spectrum_name, spectrum_data in extra_spectra_for_evaluation.items():
-        spectrum = torch.tensor(spectrum_data['spectrum']).to(device)
+        spectrum_input = torch.tensor(spectrum_data['spectrum']).float().to(device).unsqueeze(0).unsqueeze(0)
         with torch.no_grad():
-            out = model(spectrum.unsqueeze(0))
-            noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu().squeeze(0)
+            out = model(prepare_model_input(spectrum_input))
+            noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu().squeeze(0).squeeze(0).numpy()
+        denoised_est = out['denoised'].cpu().squeeze(0).squeeze(0).numpy()
 
         plt.figure(figsize=(30,6))
-        plt.plot(spectrum_data['frequencies'], spectrum.cpu().numpy())
-        plt.plot(spectrum_data['frequencies'], out['denoised'].cpu().squeeze(0).numpy())
+        plt.plot(spectrum_data['frequencies'], spectrum_data['spectrum'])
+        plt.plot(spectrum_data['frequencies'], denoised_est)
         plt.savefig(extra_spectra_dir / f"{spectrum_name}_clean.png")
-        np.savetxt(extra_spectra_dir / f"{spectrum_name}_clean.csv", np.column_stack((spectrum_data['frequencies'], out['denoised'].cpu().squeeze(0).numpy())))
+        np.savetxt(extra_spectra_dir / f"{spectrum_name}_clean.csv", np.column_stack((spectrum_data['frequencies'], denoised_est)))
 
         plt.figure(figsize=(30,6))
-        plt.plot(spectrum_data['frequencies'], spectrum.cpu().numpy())
-        plt.plot(spectrum_data['frequencies'], noised_est.numpy())
+        plt.plot(spectrum_data['frequencies'], spectrum_data['spectrum'])
+        plt.plot(spectrum_data['frequencies'], noised_est)
         plt.savefig(extra_spectra_dir / f"{spectrum_name}_noised.png")
-        np.savetxt(extra_spectra_dir / f"{spectrum_name}_noised.csv", np.column_stack((spectrum_data['frequencies'], noised_est.numpy())))
+        np.savetxt(extra_spectra_dir / f"{spectrum_name}_noised.csv", np.column_stack((spectrum_data['frequencies'], noised_est)))
 
         # Save response and attention if available
         if 'response' in out:
@@ -140,6 +154,8 @@ def evaluate_model(stage=0, epoch=0):
             np.savetxt(extra_spectra_dir / f"{spectrum_name}_attention.csv", out['attention'].cpu().numpy())
         
         plt.close("all")
+
+
 
 print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
 for i_stage, training_stage in enumerate(config.training):
@@ -173,11 +189,7 @@ for i_stage, training_stage in enumerate(config.training):
             break
         
         # run model
-        if config.get("multiscale_features_as_input", False):
-            model_input = multiscale_feature_extractor.extract_features(batch['noised_spectrum'].to(device))
-        else:
-            model_input = batch['noised_spectrum'].to(device)
-        out = model(model_input)
+        out = model(prepare_model_input(batch['noised_spectrum']).to(device))
         # calculate losses
         loss_response = torch.nn.functional.mse_loss(out['response'], batch['response_function'].squeeze(dim=(1,2)).to(device))
         loss_clean = torch.nn.functional.mse_loss(out['denoised'], batch['theoretical_spectrum'].to(device))
