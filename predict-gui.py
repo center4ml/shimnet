@@ -129,7 +129,7 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
 # Gradio app
 with gr.Blocks() as app:
     gr.Markdown("# ShimNet Spectra Correction")
-    gr.Markdown("[ShimNet: A neural network for post-acquisition improvement of NMR spectra distorted by magnetic-field inhomogeneity](https://chemrxiv.org/engage/chemrxiv/article-details/67ef86686dde43c90860d315)")
+    gr.Markdown("[ShimNet: A neural network for post-acquisition improvement of NMR spectra distorted by magnetic-field inhomogeneity](https://doi.org/10.1021/acs.jpcb.5c02632)")
     gr.Markdown("Upload your input file, configuration, and weights to process the NMR spectrum.")
 
     with gr.Row():
