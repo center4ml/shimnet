@@ -4,6 +4,7 @@ from .models import ShimNetWithSCRF, Predictor
 
 class Defaults:
     SCALE = 16.0
+    SUFFIX = "_processed"
 
 # functions
 def resample_input_spectrum(input_freqs, input_spectrum, Mhz_per_point):
