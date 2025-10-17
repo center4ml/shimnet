@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module='torchdata')
 
 # from shiment import models
 from shimnet.generators import get_datapipe
+from shimnet.predict_utils import Defaults as PredictDefaults
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if len(sys.argv) < 2:
@@ -35,6 +36,7 @@ else:
 extra_spectra_for_evaluation = {}
 frq_step = config.data.get("frq_step") or config.metadata.get("frq_step")
 model_ppm_per_point = frq_step / config.metadata.spectrometer_frequency
+evaluation_spectra_normalization = config.logging.get("evaluation_spectra_normalization", PredictDefaults.SCALE)
 
 for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
     spectrum_file = Path(spectra_data.path)
@@ -47,6 +49,9 @@ for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
         spectrum_freqs_model_ppm = spectrum_freqs_input_ppm * spectrometer_frequency / config.metadata.spectrometer_frequency
         spectrum_freqs = np.arange(spectrum_freqs_model_ppm.min(), spectrum_freqs_model_ppm.max(), model_ppm_per_point)
         spectrum = np.interp(spectrum_freqs, spectrum_freqs_model_ppm, spectrum)
+
+    if evaluation_spectra_normalization is not None:
+        spectrum = spectrum * (evaluation_spectra_normalization / np.max(spectrum))
 
     extra_spectra_for_evaluation[Path(spectrum_file).stem] = {
         'frequencies': spectrum_freqs,
@@ -106,22 +111,23 @@ def evaluate_model(stage=0, epoch=0):
         extra_spectra_dir = plot_dir / "extra_spectra"
         extra_spectra_dir.mkdir(exist_ok=True, parents=True)
     for spectrum_name, spectrum_data in extra_spectra_for_evaluation.items():
-        spectrum = torch.tensor(spectrum_data['spectrum']).to(device)
+        spectrum_input = torch.tensor(spectrum_data['spectrum']).float().to(device).unsqueeze(0).unsqueeze(0)
         with torch.no_grad():
-            out = model(spectrum.unsqueeze(0))
-            noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu().squeeze(0)
+            out = model(spectrum_input)
+            noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu().squeeze(0).squeeze(0).numpy()
+        denoised_est = out['denoised'].cpu().squeeze(0).squeeze(0).numpy()
 
         plt.figure(figsize=(30,6))
-        plt.plot(spectrum_data['frequencies'], spectrum.cpu().numpy())
-        plt.plot(spectrum_data['frequencies'], out['denoised'].cpu().squeeze(0).numpy())
+        plt.plot(spectrum_data['frequencies'], spectrum_data['spectrum'])
+        plt.plot(spectrum_data['frequencies'], denoised_est)
         plt.savefig(extra_spectra_dir / f"{spectrum_name}_clean.png")
-        np.savetxt(extra_spectra_dir / f"{spectrum_name}_clean.csv", np.column_stack((spectrum_data['frequencies'], out['denoised'].cpu().squeeze(0).numpy())))
+        np.savetxt(extra_spectra_dir / f"{spectrum_name}_clean.csv", np.column_stack((spectrum_data['frequencies'], denoised_est)))
 
         plt.figure(figsize=(30,6))
-        plt.plot(spectrum_data['frequencies'], spectrum.cpu().numpy())
-        plt.plot(spectrum_data['frequencies'], noised_est.numpy())
+        plt.plot(spectrum_data['frequencies'], spectrum_data['spectrum'])
+        plt.plot(spectrum_data['frequencies'], noised_est)
         plt.savefig(extra_spectra_dir / f"{spectrum_name}_noised.png")
-        np.savetxt(extra_spectra_dir / f"{spectrum_name}_noised.csv", np.column_stack((spectrum_data['frequencies'], noised_est.numpy())))
+        np.savetxt(extra_spectra_dir / f"{spectrum_name}_noised.csv", np.column_stack((spectrum_data['frequencies'], noised_est)))
 
         # Save response and attention if available
         if 'response' in out:
@@ -139,6 +145,8 @@ def evaluate_model(stage=0, epoch=0):
         plt.close("all")
 
 
+
+print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
         model.load_state_dict(torch.load(model_weights_file, weights_only=True))
