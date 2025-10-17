@@ -95,12 +95,17 @@ class ShimNetWithSCRF(torch.nn.Module):
         }
 
 class Predictor:
-    def __init__(self, model=None, weights_file=None):
+    def __init__(self, model=None, weights_file=None, preprocessor=None):
         self.model = model
         if weights_file is not None:
             self.model.load_state_dict(torch.load(weights_file, map_location='cpu', weights_only=True))
+        self.preprocessor = preprocessor
 
-    def __call__(self, nsf_frq):
+    def __call__(self, model_input):
+        """model_input: 1D torch tensor"""
+        model_input = model_input[None, None]  #(1, 1, length)
+        if self.preprocessor is not None:
+            model_input = self.preprocessor(model_input)
         with torch.no_grad():
-            msf_frq = self.model(nsf_frq[None, None])["denoised"]
+            msf_frq = self.model(model_input)["denoised"]
         return msf_frq[0, 0]

@@ -74,6 +74,10 @@ class MultiscaleFeatureExtractor:
         
         return features
     
+    def __call__(self, x):
+        """alias for extract_features"""
+        return self.extract_features(x)
+    
     def __repr__(self):
         info = f"MultiscaleFeatureExtractor(\n"
         info += f"  H_0={self.H_0:.4f}, lambda={self.lambda_scale:.4f}, k={self.k}\n"
