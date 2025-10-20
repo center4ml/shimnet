@@ -21,6 +21,8 @@ def resample_output_spectrum(input_freqs, freqs, prediction):
 
 def initialize_predictor(config, weights_file):
     model = ShimNetWithSCRF(**config.model.kwargs)
+
+    # preprocessor kept temporarily for backward compatibility with 47c5b63e1c02c25af0c6014f5a971040091638d5
     if config.get("multiscale_features_as_input", False):
         preprocessor = MultiscaleFeatureExtractor(**config.multiscale_features)
     else:

@@ -16,5 +16,5 @@ data/
 build/
 *shimnet.egg-info/
 
-# bash loops
+# local scripts
 run_trainings.sh
