@@ -17,7 +17,6 @@ warnings.filterwarnings("ignore", category=UserWarning, module='torchdata')
 
 # from shiment import models
 from shimnet.generators import get_datapipe
-from shimnet.multiscale import MultiscaleFeatureExtractor
 from shimnet.predict_utils import Defaults as PredictDefaults
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -60,20 +59,16 @@ for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
     }
 
 # initialization        
-model = instantiate({"_target_": f"shimnet.models.{config.model.name}", **config.model.kwargs}).to(device)
+model = instantiate(config.model).to(device)
 model_weights_file = run_dir / f'model.pt'
 optimizer = torch.optim.Adam(model.parameters())
 optimizer_weights_file = run_dir / f'optimizer.pt'
 
 # initialize multiscale feature extractor
-multiscale_feature_extractor = MultiscaleFeatureExtractor(**config.multiscale_features)
-def prepare_model_input(noised_spectra_batch):
-    """Prepare model input, applying multiscale feature extraction if configured."""
-    if config.get("multiscale_features_as_input", False):
-        return multiscale_feature_extractor.extract_features(noised_spectra_batch)
-    else:
-        return noised_spectra_batch
-
+if config.get("multiscale_output") is not None:
+    multiscale_feature_extractor = instantiate(config.multiscale_output).to(device)
+else:
+    multiscale_feature_extractor = None
 
 def evaluate_model(stage=0, epoch=0):
     plot_dir = run_dir / "plots" / f"{stage}_{epoch}"
@@ -91,7 +86,7 @@ def evaluate_model(stage=0, epoch=0):
     batch = next(iter(pipe))
 
     with torch.no_grad():
-        out = model(prepare_model_input(batch['noised_spectrum']).to(device))
+        out = model(batch['noised_spectrum'].to(device))
         noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu()
 
         for i in range(num_plots):
@@ -124,7 +119,7 @@ def evaluate_model(stage=0, epoch=0):
     for spectrum_name, spectrum_data in extra_spectra_for_evaluation.items():
         spectrum_input = torch.tensor(spectrum_data['spectrum']).float().to(device).unsqueeze(0).unsqueeze(0)
         with torch.no_grad():
-            out = model(prepare_model_input(spectrum_input))
+            out = model(spectrum_input)
             noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same").cpu().squeeze(0).squeeze(0).numpy()
         denoised_est = out['denoised'].cpu().squeeze(0).squeeze(0).numpy()
 
@@ -189,16 +184,19 @@ for i_stage, training_stage in enumerate(config.training):
             break
         
         # run model
-        out = model(prepare_model_input(batch['noised_spectrum']).to(device))
+        out = model(batch['noised_spectrum'].to(device))
         # calculate losses
         loss_response = torch.nn.functional.mse_loss(out['response'], batch['response_function'].squeeze(dim=(1,2)).to(device))
         loss_clean = torch.nn.functional.mse_loss(out['denoised'], batch['theoretical_spectrum'].to(device))
         noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same")
         loss_noised = torch.nn.functional.mse_loss(noised_est, batch['noised_spectrum'].to(device))
 
-        multiscale_pred = multiscale_feature_extractor.extract_features(out['denoised'])
-        multiscale_gt = multiscale_feature_extractor.extract_features(batch['theoretical_spectrum'].to(device))
-        loss_multiscale_clean = torch.nn.functional.mse_loss(multiscale_pred, multiscale_gt)
+        if multiscale_feature_extractor is not None:
+            multiscale_pred = multiscale_feature_extractor(out['denoised'])
+            multiscale_gt = multiscale_feature_extractor(batch['theoretical_spectrum'].to(device))
+            loss_multiscale_clean = torch.nn.functional.mse_loss(multiscale_pred, multiscale_gt)
+        else:
+            loss_multiscale_clean = 0.0
 
         loss = config.losses_weights.response*loss_response + config.losses_weights.clean*loss_clean + config.losses_weights.noised*loss_noised + config.losses_weights.multiscale_clean*loss_multiscale_clean
 

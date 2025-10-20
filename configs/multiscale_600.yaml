@@ -1,10 +1,15 @@
 model:
-  name: ShimNetWithSCRF
-  kwargs:
-    rensponse_length: 81
-    resnponse_head_dims:
-    - 128
-    input_dim: ${multiscale_features.k}
+  _target_: shimnet.models.ShimNetWithSCRF
+  rensponse_length: 81
+  resnponse_head_dims:
+  - 128
+  input_dim: 9 # number of multiscale features (k) + 1, if concatenate_original is true
+  feature_extractor:
+    _target_: shimnet.multiscale.MultiscaleFeatureExtractor
+    H_0: 16.0
+    lambda_scale: 0.5
+    k: 8
+    concatenate_original: true
 training:
 - batch_size: 64
   learning_rate: 0.001
@@ -20,11 +25,11 @@ losses_weights:
   noised: 1.0
   response: 1.0
   multiscale_clean: 1.0
-multiscale_features_as_input: true
-multiscale_features:
+multiscale_output:
+  _target_: shimnet.multiscale.MultiscaleFeatureExtractor
   H_0: 16.0
   lambda_scale: 0.5
-  k: 10
+  k: 8
 data:
   response_functions_files:
   # Paste path to your SCRF file here

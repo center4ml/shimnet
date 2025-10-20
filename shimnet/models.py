@@ -58,6 +58,7 @@ class ResponseHead(torch.nn.Module):
 
 class ShimNetWithSCRF(torch.nn.Module):
     def __init__(self,
+        feature_extractor=None,
         encoder_hidden_dims=64,
         encoder_dropout=0,
         bottleneck_dim=64,
@@ -67,6 +68,7 @@ class ShimNetWithSCRF(torch.nn.Module):
         input_dim=1
         ):
         super().__init__()
+        self.feature_extractor = feature_extractor
         self.encoder = ConvEncoder(hidden_dim=encoder_hidden_dims, output_dim=bottleneck_dim, dropout=encoder_dropout, input_dim=input_dim)
         self.query = torch.nn.Parameter(torch.empty(1, 1, bottleneck_dim))
         torch.nn.init.xavier_normal_(self.query)
@@ -77,6 +79,8 @@ class ShimNetWithSCRF(torch.nn.Module):
         self.response_head = ResponseHead(bottleneck_dim, rensponse_length, resnponse_head_dims)
         
     def forward(self, feature):                                        #(samples,   1, 2048)
+        if self.feature_extractor is not None:
+            feature = self.feature_extractor(feature)                  #(samples, input_dim, 2048)
         feature = self.encoder(feature)                                #(samples,  64, 2042)
         energy = self.query @ feature                                  #(samples,   1, 2024)
         weight = torch.nn.functional.softmax(energy, 2)                #(samples,   1, 2024)
@@ -95,6 +99,7 @@ class ShimNetWithSCRF(torch.nn.Module):
         }
 
 class Predictor:
+    # preprocessor kept temporarily for backward compatibility with 47c5b63e1c02c25af0c6014f5a971040091638d5
     def __init__(self, model=None, weights_file=None, preprocessor=None):
         self.model = model
         if weights_file is not None:
