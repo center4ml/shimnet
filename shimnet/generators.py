@@ -12,27 +12,37 @@ def random_value(min_value, max_value, generator=None):
 def random_loguniform(min_value, max_value, generator=None):
     return (min_value * torch.exp(torch.rand(1, generator=generator) * (torch.log(torch.tensor(max_value)) - torch.log(torch.tensor(min_value))))).item()
 
-def calculate_theoretical_spectrum(peaks_parameters: dict, frq_frq:torch.Tensor):
-    # extract parameters
-    tff_lin = peaks_parameters["tff_lin"]
-    twf_lin = peaks_parameters["twf_lin"]
-    thf_lin = peaks_parameters["thf_lin"]
-    trf_lin = peaks_parameters["trf_lin"]
+def spectrum_from_peaks_data(peaks_parameters: dict | list, frq_frq:torch.Tensor, relative_frequency=False):
 
-    lwf_lin = twf_lin
-    lhf_lin = thf_lin * (1. - trf_lin)
-    gwf_lin = twf_lin
-    gdf_lin = gwf_lin / torch.tensor(2.).log().mul(2.).sqrt()
-    ghf_lin = thf_lin * trf_lin
-    # calculate Lorenz peaks contriubutions
-    lsf_linfrq = lwf_lin[:, None] ** 2 / (lwf_lin[:, None] ** 2 + (frq_frq - tff_lin[:, None]) ** 2) * lhf_lin[:, None]
-    # calculate Gaussian peaks contriubutions
-    gsf_linfrq = torch.exp(-(frq_frq - tff_lin[:, None]) ** 2 / gdf_lin[:, None] ** 2 / 2.) * ghf_lin[:, None]
-    tsf_linfrq = lsf_linfrq + gsf_linfrq
-    # sum peaks contriubutions
-    tsf_frq = tsf_linfrq.sum(0, keepdim = True)
-    return tsf_frq
+    if isinstance(peaks_parameters, dict):
+        peaks_parameters = [peaks_parameters]
+    
+    spectrum = torch.zeros((1, frq_frq.shape[0]))
+    for peak_params in peaks_parameters:
+        # extract parameters
+        if relative_frequency:
+            tff_lin = frq_frq[0] + peak_params["tff_relative"]*(frq_frq[1]-frq_frq[0])
+        else:
+            tff_lin = peak_params["tff_lin"]
+        twf_lin = peak_params["twf_lin"]
+        thf_lin = peak_params["thf_lin"]
+        trf_lin = peak_params["trf_lin"]
 
+        lwf_lin = twf_lin
+        lhf_lin = thf_lin * (1. - trf_lin)
+        gwf_lin = twf_lin
+        gdf_lin = gwf_lin / torch.tensor(2.).log().mul(2.).sqrt()
+        ghf_lin = thf_lin * trf_lin
+        # calculate Lorenz peaks contriubutions
+        lsf_linfrq = lwf_lin[:, None] ** 2 / (lwf_lin[:, None] ** 2 + (frq_frq - tff_lin[:, None]) ** 2) * lhf_lin[:, None]
+        # calculate Gaussian peaks contriubutions
+        gsf_linfrq = torch.exp(-(frq_frq - tff_lin[:, None]) ** 2 / gdf_lin[:, None] ** 2 / 2.) * ghf_lin[:, None]
+        tsf_linfrq = lsf_linfrq + gsf_linfrq
+        # sum peaks contriubutions
+        spectrum += tsf_linfrq.sum(0, keepdim = True)
+    return spectrum
+
+calculate_theoretical_spectrum = spectrum_from_peaks_data  # Alias for backward compatibility
 
 pascal_triangle = [(1,), (1,1), (1,2,1), (1,3,3,1), (1,4,6,4,1), (1,5,10,10,5,1), (1,6,15,20,15,6,1), (1,7, 21,35,35,21,7,1)]
 normalized_pascal_triangle = [torch.tensor(x)/sum(x) for x in pascal_triangle]
@@ -65,8 +75,8 @@ def generate_multiplet_parameters(multiplicity, tff_lin, thf_lin, twf_lin, trf_l
 def value_to_index(values, table):
     span = table[-1] - table[0]
     indices = ((values - table[0])/span * (len(table)-1)) #.round().type(torch.int64)
-    return indices  
-    
+    return indices
+
 def generate_theoretical_spectrum(
     number_of_signals_min, number_of_signals_max,
     spectrum_width_min, spectrum_width_max,
@@ -328,20 +338,44 @@ class RngGetter:
             rng = self.rng
         return rng
 
-class TheoreticalMultipletSpectraGenerator:
-    def __init__(self, atom_groups_data_file=None, pixels=2048, frq_step=11160.7142857 / 32768,
-                 number_of_signals_min=1, number_of_signals_max=8,
-                 spectrum_width_min=0.2, spectrum_width_max=1, relative_width_min=1, relative_width_max=2,
-                 relative_height_min=1, relative_height_max=1, relative_frequency_min=-0.4, relative_frequency_max=0.4,
-                 thf_min=1/16, thf_max=16, trf_min=0, trf_max=1, multiplicity_j1_min=0, multiplicity_j1_max=15,
-                 multiplicity_j2_min=0, multiplicity_j2_max=15, seed=42, **kwargs):
+
+class PeaksParameterDataGenerator:
+    """
+    Generates peak parameter data for NMR multiplets.
+    
+    This class is responsible for generating the parameters that describe individual peaks
+    in an NMR spectrum (frequencies, heights, widths, Gaussian/Lorentzian ratio).
+    """
+    def __init__(self, 
+                 tff_min=None, #may be assigned after initialization
+                 tff_max=None, #may be assigned after initialization
+                 atom_groups_data_file=None,
+                 number_of_signals_min=1, 
+                 number_of_signals_max=8,
+                 spectrum_width_min=0.2, 
+                 spectrum_width_max=1,
+                 relative_width_min=1, 
+                 relative_width_max=2,
+                 relative_height_min=1, 
+                 relative_height_max=1,
+                 thf_min=1/16, 
+                 thf_max=16,
+                 trf_min=0, 
+                 trf_max=1,
+                 multiplicity_j1_min=0, 
+                 multiplicity_j1_max=15,
+                 multiplicity_j2_min=0, 
+                 multiplicity_j2_max=15,
+                 seed=42
+                 ):
         # Read atom_groups_data from file
         if atom_groups_data_file is None:
             self.atom_groups_data = np.ones((1,3), dtype=int)
         else:
             self.atom_groups_data = np.atleast_2d(np.loadtxt(atom_groups_data_file, usecols=(1,2,3), dtype=int))
-        self.pixels = pixels
-        self.frq_step = frq_step
+        
+        self.tff_min = tff_min
+        self.tff_max = tff_max
         self.number_of_signals_min = number_of_signals_min
         self.number_of_signals_max = number_of_signals_max
         self.spectrum_width_min = spectrum_width_min
@@ -350,8 +384,6 @@ class TheoreticalMultipletSpectraGenerator:
         self.relative_width_max = relative_width_max
         self.relative_height_min = relative_height_min
         self.relative_height_max = relative_height_max
-        self.relative_frequency_min = relative_frequency_min
-        self.relative_frequency_max = relative_frequency_max
         self.thf_min = thf_min
         self.thf_max = thf_max
         self.trf_min = trf_min
@@ -360,36 +392,135 @@ class TheoreticalMultipletSpectraGenerator:
         self.multiplicity_j1_max = multiplicity_j1_max
         self.multiplicity_j2_min = multiplicity_j2_min
         self.multiplicity_j2_max = multiplicity_j2_max
-        self.frq_frq = torch.arange(-pixels // 2, pixels // 2) * frq_step
-        self.rng_getter = RngGetter(seed=seed) # self.rng_getter.get_rng(seed=seed) to get random generator 
+        
+        self.rng_getter = RngGetter(seed=seed)
+    
+    def set_tff_range(self, tff_min, tff_max):
+        self.tff_min = tff_min
+        self.tff_max = tff_max
 
     def __call__(self, seed=None):
+        """
+        Generate peak parameters data.
+        
+        Args:
+            seed: Optional seed for reproducibility
+        
+        Returns:
+            List of dicts containing peak parameters (without tff_relative)
+        """
         rng = self.rng_getter.get_rng(seed=seed)
-
-        spectrum, spectrum_data = generate_theoretical_spectrum(
-            number_of_signals_min=self.number_of_signals_min,
-            number_of_signals_max=self.number_of_signals_max,
-            spectrum_width_min=self.spectrum_width_min,
-            spectrum_width_max=self.spectrum_width_max,
-            relative_width_min=self.relative_width_min,
-            relative_width_max=self.relative_width_max,
-            tff_min=self.relative_frequency_min * self.pixels * self.frq_step,
-            tff_max=self.relative_frequency_max * self.pixels * self.frq_step,
-            thf_min=self.thf_min,
-            thf_max=self.thf_max,
-            trf_min=self.trf_min,
-            trf_max=self.trf_max,
-            relative_height_min=self.relative_height_min,
-            relative_height_max=self.relative_height_max,
-            multiplicity_j1_min=self.multiplicity_j1_min,
-            multiplicity_j1_max=self.multiplicity_j1_max,
-            multiplicity_j2_min=self.multiplicity_j2_min,
-            multiplicity_j2_max=self.multiplicity_j2_max,
-            atom_groups_data=self.atom_groups_data,
-            frq_frq=self.frq_frq,
+        
+        number_of_signals = torch.randint(
+            self.number_of_signals_min, 
+            self.number_of_signals_max + 1, 
+            [], 
             generator=rng
         )
-        return spectrum, {"spectrum_data": spectrum_data, "frq_frq": self.frq_frq}
+        atom_group_indices = torch.randint(
+            0, 
+            len(self.atom_groups_data), 
+            [number_of_signals], 
+            generator=rng
+        )
+        width_spectrum = random_loguniform(
+            self.spectrum_width_min, 
+            self.spectrum_width_max, 
+            generator=rng
+        )
+        height_spectrum = random_loguniform(
+            self.thf_min, 
+            self.thf_max, 
+            generator=rng
+        )
+        
+        peaks_parameters_data = []
+        for atom_group_index in atom_group_indices:
+            relative_intensity, multiplicity1, multiplicity2 = self.atom_groups_data[atom_group_index]
+            position = random_value(self.tff_min, self.tff_max, generator=rng)
+            j1 = random_value(self.multiplicity_j1_min, self.multiplicity_j1_max, generator=rng)
+            j2 = random_value(self.multiplicity_j2_min, self.multiplicity_j2_max, generator=rng)
+            width = width_spectrum * random_loguniform(
+                self.relative_width_min, 
+                self.relative_width_max, 
+                generator=rng
+            )
+            height = height_spectrum * relative_intensity * random_loguniform(
+                self.relative_height_min, 
+                self.relative_height_max, 
+                generator=rng
+            )
+            gaussian_contribution = random_value(self.trf_min, self.trf_max, generator=rng)
+            
+            peak_parameters = generate_multiplet_parameters(
+                multiplicity=(multiplicity1, multiplicity2), 
+                tff_lin=position, 
+                thf_lin=height, 
+                twf_lin=width, 
+                trf_lin=gaussian_contribution, 
+                j1=j1, 
+                j2=j2
+            )
+            peaks_parameters_data.append(peak_parameters)
+
+        return peaks_parameters_data
+
+class TheoreticalMultipletSpectraGenerator:
+    """
+    Generates theoretical NMR multiplet spectra.
+    
+    This class combines peak parameter generation with spectrum calculation.
+    It can accept either a PeaksParameterDataGenerator instance or parameters to create one.
+    """
+    def __init__(self, 
+                 peaks_parameter_generator,
+                 pixels=2048, 
+                 frq_step=11160.7142857 / 32768,
+                 relative_frequency_min=-0.4, 
+                 relative_frequency_max=0.4,
+                 include_tff_relative=False,
+                 seed=42
+                 ):
+
+        # Spectrum-level parameters
+        self.pixels = pixels
+        self.frq_step = frq_step
+        self.relative_frequency_min = relative_frequency_min
+        self.relative_frequency_max = relative_frequency_max
+        self.include_tff_relative = include_tff_relative
+        self.frq_frq = torch.arange(-pixels // 2, pixels // 2) * frq_step
+        
+        self.peaks_parameter_generator = peaks_parameter_generator
+        self.peaks_parameter_generator.set_tff_range(
+            tff_min=relative_frequency_min * pixels * frq_step,
+            tff_max=relative_frequency_max * pixels * frq_step
+        )
+
+        # self.rng_getter = RngGetter(seed=seed) # self.rng_getter.get_rng(seed=seed) to get random generator
+        
+    def __call__(self, seed=None):
+        """
+        Generate a theoretical spectrum.
+        
+        Args:
+            seed: Optional seed for reproducibility
+        
+        Returns:
+            Tuple of (spectrum, dict with spectrum_data and frq_frq)
+        """
+        # Generate peak parameters (peaks_parameter_generator has its own RngGetter)
+        peaks_parameters_data = self.peaks_parameter_generator(seed=seed)
+
+        
+        # Add tff_relative if requested
+        if self.include_tff_relative:
+            for peak_params in peaks_parameters_data:
+                peak_params["tff_relative"] = value_to_index(peak_params["tff_lin"], self.frq_frq)
+        
+        # Create spectrum from peaks
+        spectrum = spectrum_from_peaks_data(peaks_parameters_data, self.frq_frq)
+
+        return spectrum, {"spectrum_data": peaks_parameters_data, "frq_frq": self.frq_frq}
 
 class ResponseGenerator:
     def __init__(self, response_function_library, response_function_stretch_min=1., response_function_stretch_max=1., pad_to=None,
