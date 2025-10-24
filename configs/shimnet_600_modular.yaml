@@ -25,27 +25,29 @@ data:
   batch_size: null # to be set in training script
   clean_spectra_generator:
     _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
-    atom_groups_data_file: data/multiplets_10000_parsed.txt
     pixels: 2048
     frq_step: ${metadata.frq_step}
-    number_of_signals_min: 2
-    number_of_signals_max: 5
-    spectrum_width_min: 0.2
-    spectrum_width_max: 1.0
-    relative_width_min: 1.0
-    relative_width_max: 2.0
-    relative_height_min: 0.5
-    relative_height_max: 4
     relative_frequency_min: -0.4
     relative_frequency_max: 0.4
-    thf_min: 0.5
-    thf_max: 2
-    trf_min: 0.0
-    trf_max: 1.0
-    multiplicity_j1_min: 0.0
-    multiplicity_j1_max: 15
-    multiplicity_j2_min: 0.0
-    multiplicity_j2_max: 15
+    peaks_parameter_generator:
+        _target_: shimnet.generators.PeaksParameterDataGenerator
+        atom_groups_data_file: data/multiplets_10000_parsed.txt
+        number_of_signals_min: 2
+        number_of_signals_max: 5
+        spectrum_width_min: 0.2
+        spectrum_width_max: 1.0
+        relative_width_min: 1.0
+        relative_width_max: 2.0
+        relative_height_min: 0.5
+        relative_height_max: 4
+        thf_min: 0.5
+        thf_max: 2
+        trf_min: 0.0
+        trf_max: 1.0
+        multiplicity_j1_min: 0.0
+        multiplicity_j1_max: 15
+        multiplicity_j2_min: 0.0
+        multiplicity_j2_max: 15
   response_generator:
     _target_: shimnet.generators.ResponseGenerator
     response_function_library:
