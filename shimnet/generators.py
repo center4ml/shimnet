@@ -6,6 +6,10 @@ from abc import ABC, abstractmethod
 
 # from itertools import islice
 
+
+
+
+
 def random_value(min_value, max_value, generator=None):
     return (min_value + torch.rand(1, generator=generator) * (max_value - min_value)).item()
 
@@ -409,6 +413,9 @@ class PeaksParameterDataGenerator:
         Returns:
             List of dicts containing peak parameters (without tff_relative)
         """
+        if self.tff_min is None or self.tff_max is None:
+            raise ValueError("tff_min and tff_max must be set before calling the generator.")
+    
         rng = self.rng_getter.get_rng(seed=seed)
         
         number_of_signals = torch.randint(
