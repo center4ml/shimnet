@@ -2,6 +2,7 @@ import torch, torchaudio
 import numpy as np
 from pathlib import Path
 from omegaconf import OmegaConf
+from copy import deepcopy
 from hydra.utils import instantiate
 import datetime
 import sys
@@ -70,6 +71,19 @@ if config.get("multiscale_output") is not None:
 else:
     multiscale_feature_extractor = None
 
+def get_datapipe(config_data, batch_size, alter_seed_by=None):
+    data_config = deepcopy(config_data)
+    data_config.batch_size = batch_size
+
+    # we may change the seed for different stages
+    if alter_seed_by is not None:
+        if "seed" in data_config:
+            if data_config.seed is None:
+                data_config.seed = alter_seed_by
+            else:
+                data_config.seed = config_data.seed + alter_seed_by
+    return instantiate(data_config)
+
 def evaluate_model(stage=0, epoch=0):
     plot_dir = run_dir / "plots" / f"{stage}_{epoch}"
     plot_dir.mkdir(exist_ok=True, parents=True)
@@ -78,11 +92,12 @@ def evaluate_model(stage=0, epoch=0):
     torch.save(optimizer.state_dict(), plot_dir / "optimizer.pt")
     
     num_plots = config.logging.num_plots
-    pipe = get_datapipe(
-            **config.data,
-            include_response_function=True,
-            batch_size=num_plots
-        )
+    pipe = get_datapipe(config.data, batch_size=num_plots)
+    # if possible, set seed and ordered batch for reproducibility
+    if hasattr(pipe, 'set_seed'):
+        pipe.set_seed(42)
+    if hasattr(pipe, 'set_ordered_batch'):
+        pipe.set_ordered_batch(True)
     batch = next(iter(pipe))
 
     with torch.no_grad():
@@ -150,8 +165,6 @@ def evaluate_model(stage=0, epoch=0):
         
         plt.close("all")
 
-
-
 print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
@@ -161,17 +174,13 @@ for i_stage, training_stage in enumerate(config.training):
         optimizer.load_state_dict(torch.load(optimizer_weights_file, weights_only=True))
     optimizer.param_groups[0]['lr'] = training_stage.learning_rate
     
-    pipe = get_datapipe(
-        **config.data,
-        include_response_function=True,
-        batch_size=training_stage.batch_size
-    )
+    pipe = get_datapipe(config.data, batch_size=training_stage.batch_size, alter_seed_by=i_stage)
 
     losses_history = []
     losses_history_limit = 64*100 // training_stage.batch_size
     
     last_evaluation = 0
-    for epoch, batch in pipe.enumerate():
+    for epoch, batch in enumerate(pipe):
         
         # logging
         iters_done = epoch*training_stage.batch_size

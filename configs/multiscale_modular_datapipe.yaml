@@ -1,0 +1,81 @@
+model:
+  _target_: shimnet.models.ShimNetWithSCRF
+  rensponse_length: 81
+  resnponse_head_dims:
+  - 128
+  input_dim: 9 # number of multiscale features (k) + 1, if concatenate_original is true
+  feature_extractor:
+    _target_: shimnet.multiscale.MultiscaleFeatureExtractor
+    H_0: 16.0
+    lambda_scale: 0.5
+    k: 8
+    concatenate_original: true
+training:
+- batch_size: 64
+  learning_rate: 0.001
+  max_iters: 400000
+- batch_size: 512
+  learning_rate: 0.001
+  max_iters: 2560000
+- batch_size: 512
+  learning_rate: 0.0005
+  max_iters: 1280000
+losses_weights:
+  clean: 1.0
+  noised: 1.0
+  response: 10.0
+  multiscale_clean: 10.0
+multiscale_output: # used for multiscale loss calculation
+  _target_: shimnet.multiscale.MultiscaleFeatureExtractor
+  H_0: 16.0
+  lambda_scale: 0.5
+  k: 8
+data:
+  _target_: shimnet.generators.Generator
+  input_normalization_height: 16.0
+  include_response_function: true
+  seed: 44 # null means random seed
+  batch_size: null # to be set in training script
+  clean_spectra_generator:
+    _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
+    peaks_parameter_generator:
+      _target_: shimnet.generators.MultipletDataFromMultipletsLibrary
+      multiplets_library:
+        _target_: shimnet.generators.MultipletsLibrary
+        csv_files_paths:
+        - data/multiplets_lists/azydekbenzylu_sub1_mono-click.csv
+        peak_data_parser:
+          _target_: shimnet.generators.PeaksParametersParser
+      use_original_peak_position: false
+      number_of_signals_min: 2 # null to use all signals (both min and max must be null)
+      number_of_signals_max: 10 # null to use all signals (both min and max must be null)
+      seed: null
+    pixels: 1024
+    frq_step: ${metadata.frq_step}
+    relative_frequency_min: -0.4
+    relative_frequency_max: 0.4
+  response_generator:
+    _target_: shimnet.generators.ResponseGenerator
+    # response_function_stretch_min: 0.75
+    # response_function_stretch_max: 1.5
+    # pad_to: 123 # odd, at least as large as response length after stretching
+    response_function_library:
+      _target_: shimnet.generators.ResponseLibrary
+      response_files:
+      - data/scrf_81_600MHz.pt
+  noise_generator:
+    _target_: shimnet.generators.NoiseGenerator
+    spectrum_noise_min: 0.0
+    spectrum_noise_max: 0.1
+logging:
+  step: 100000
+  num_plots: 5
+  # extra_spectra_for_evaluation:
+  # - path: sample_data/CresolRed_after_styrene_600MHz.csv
+  # - path: sample_data/CresolRed_after_styrene_cut_600MHz.csv
+  # - path: sample_data/Azarone_X_supressed_600MHz.csv
+  # - path: sample_data/Geraniol_up_1mm_600MHz.csv
+  # - path: sample_data/Azarone_Z1Z2_supressed_600MHz.csv
+metadata:
+  frq_step: 0.30048
+  spectrometer_frequency: 600.0
