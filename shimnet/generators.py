@@ -1,14 +1,12 @@
+from enum import Enum
+from copy import deepcopy
+# from pathlib import Path
 import numpy as np
+import pandas as pd
 import torch
 import torchdata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from abc import ABC, abstractmethod
-
-# from itertools import islice
-
-
-
-
 
 def random_value(min_value, max_value, generator=None):
     return (min_value + torch.rand(1, generator=generator) * (max_value - min_value)).item()
@@ -529,6 +527,238 @@ class TheoreticalMultipletSpectraGenerator:
 
         return spectrum, {"spectrum_data": peaks_parameters_data, "frq_frq": self.frq_frq}
 
+
+class PeaksParametersNames(Enum):
+    """Enum for standardized peak parameter names."""
+    tff_lin = "position_hz"
+    thf_lin = "height"
+    twf_lin = "width_hz"
+    trf_lin = "gaussian_fraction"
+
+    @classmethod
+    def keys(cls):
+        return [member.value for member in cls]
+    
+    @classmethod
+    def values(cls):
+        return [member.name for member in cls]
+
+class PeaksParametersParser:
+    def __init__(self,
+        alias_position_hz = None,
+        alias_height = None,
+        alias_width_hz = None,
+        alias_gaussian_fraction = None,
+        default_position_hz = None,
+        default_height = None,
+        default_width_hz = None,
+        default_gaussian_fraction = 0.,
+        ):
+        self.alias_position_hz = alias_position_hz if alias_position_hz is not None else "position_hz"
+        self.alias_height = alias_height if alias_height is not None else "height"
+        self.alias_width_hz = alias_width_hz if alias_width_hz is not None else "width_hz"
+        self.alias_gaussian_fraction = alias_gaussian_fraction if alias_gaussian_fraction is not None else "gaussian_fraction"
+        self.default_position_hz = default_position_hz
+        self.default_height = default_height
+        self.default_width_hz = default_width_hz
+        self.default_gaussian_fraction = default_gaussian_fraction
+
+    def transform_single_peak(self, peak: dict) -> dict:
+        parsed_peak = {
+            PeaksParametersNames("position_hz").name: peak.get(self.alias_position_hz, self.default_position_hz),
+            PeaksParametersNames("height").name: peak.get(self.alias_height, self.default_height),
+            PeaksParametersNames("width_hz").name: peak.get(self.alias_width_hz, self.default_width_hz),
+            PeaksParametersNames("gaussian_fraction").name: peak.get(self.alias_gaussian_fraction, self.default_gaussian_fraction),
+        }
+        # Validate and convert other peak parameters
+        for k, v in parsed_peak.items():
+            if v is None:
+                raise ValueError(f"Peak parameter '{k}' is None.")
+            parsed_peak[k] = torch.atleast_1d(torch.tensor(v, dtype=torch.float32))
+        return parsed_peak
+
+    def transform(self, spectrum_peaks: list[dict]) -> list[dict]:
+        parsed_peaks = []
+        for peak in spectrum_peaks:
+            parsed_peaks.append(self.transform_single_peak(peak))
+        return parsed_peaks
+
+def csv_file_to_multiplets_dict(file_path: str) -> list[dict]:
+    peaks_data = pd.read_csv(file_path)
+    multiplets = {k: v.drop(columns="multiplet_name").to_dict(orient='list') for k, v in peaks_data.groupby("multiplet_name")}
+    return multiplets
+
+def combine_multiplets(multiplets_list: list[dict]) -> dict:
+    composed_multiplets = {}
+    for multiplets in multiplets_list:
+        for k, v in multiplets.items():
+            if not k in composed_multiplets:
+                composed_multiplets[k] = v
+            else:
+                composed_multiplets[k].extend(v)
+    return composed_multiplets
+
+class MultipletsLibrary:
+    def __init__(self, csv_files_paths: list[str], peak_data_parser: PeaksParametersParser = None, return_name=False):
+        self.csv_files_paths = csv_files_paths
+        self.multiplets_data = {}
+        self.peak_data_parser = peak_data_parser
+        for file_path in csv_files_paths:
+            self.multiplets_data.update(self._get_multiplet_data_from_file(file_path))
+        
+        self.names = sorted(self.multiplets_data.keys())
+        self.return_name = return_name
+
+    def _get_multiplet_data_from_file(self, file_path: str) -> dict:
+        multiplets = csv_file_to_multiplets_dict(file_path) # dict[dict]
+        multiplets_out = {}
+        for k, v in multiplets.items():
+            multiplets_out[f"{file_path}/{k}"] = self.peak_data_parser.transform([v])[0] if self.peak_data_parser else v
+        return multiplets_out
+
+    def get_by_name(self, name: str) -> dict:
+        return self.multiplets_data.get(name, None)
+    
+    def __getitem__(self, idx: int) -> dict:
+        name = self.names[idx]
+        multiplet_data = deepcopy(self.multiplets_data[name])
+        if self.return_name:
+            return name, multiplet_data
+        return multiplet_data
+    
+    def __len__(self):
+        return len(self.multiplets_data)
+
+class SectraLibrary(MultipletsLibrary):
+    def _get_multiplet_data_from_file(self, file_path: str) -> dict:
+        multiplets = csv_file_to_multiplets_dict(file_path) # dict[dict]
+        combined_multiplet = combine_multiplets(multiplets.values()) # dict
+        return {f"{file_path}": self.peak_data_parser.transform([combined_multiplet])[0]}
+
+class MultipletDataFromMultipletsLibrary:
+    def __init__(self,
+        multiplets_library,
+        tff_min=None, #may be assigned after initialization if the original peak positions are not used
+        tff_max=None, #may be assigned after initialization if the original peak positions are not used
+        use_original_peak_position=True,
+        number_of_signals_min=None, 
+        number_of_signals_max=None,
+        spectrum_width_factor_min=1, 
+        spectrum_width_factor_max=1,
+        multiplet_width_factor_min=1, 
+        multiplet_width_factor_max=1,
+        spectrum_height_factor_min=1, 
+        spectrum_height_factor_max=1,
+        multiplet_height_factor_min=1, 
+        multiplet_height_factor_max=1,
+        position_shift_min=0, 
+        position_shift_max=0,
+        gaussian_fraction_change_min=None, 
+        gaussian_fraction_change_max=None,
+        seed=42
+        ):
+
+        if (number_of_signals_min is None) != (number_of_signals_max is None):
+            raise ValueError("Both number_of_signals_min and number_of_signals_max should be provided or both should be None.")
+
+        self.multiplets_library = multiplets_library
+        self.rng_getter = RngGetter(seed=seed)
+        self.tff_min = tff_min
+        self.tff_max = tff_max
+        self.use_original_peak_position = use_original_peak_position
+        self.number_of_signals_min = number_of_signals_min
+        self.number_of_signals_max = number_of_signals_max
+        self.spectrum_width_factor_min = spectrum_width_factor_min
+        self.spectrum_width_factor_max = spectrum_width_factor_max
+        self.multiplet_width_factor_min = multiplet_width_factor_min
+        self.multiplet_width_factor_max = multiplet_width_factor_max
+        self.spectrum_height_factor_min = spectrum_height_factor_min
+        self.spectrum_height_factor_max = spectrum_height_factor_max
+        self.multiplet_height_factor_min = multiplet_height_factor_min
+        self.multiplet_height_factor_max = multiplet_height_factor_max
+        self.position_shift_min = position_shift_min
+        self.position_shift_max = position_shift_max
+        self.gaussian_fraction_change_min = gaussian_fraction_change_min
+        self.gaussian_fraction_change_max = gaussian_fraction_change_max
+
+    def set_tff_range(self, tff_min, tff_max):
+        self.tff_min = tff_min
+        self.tff_max = tff_max
+
+    def __call__(self, seed=None):
+        if (not self.use_original_peak_position) and (self.tff_min is None or self.tff_max is None):
+            raise ValueError("for use_original_peak_position=False, tff_min and tff_max must be set before calling the generator.")
+
+        rng = self.rng_getter.get_rng(seed=seed)
+
+        # select number of signals and their indices
+        if self.number_of_signals_min is None:
+            number_of_signals = len(self.multiplets_library)
+            multiplets_indices = list(range(len(self.multiplets_library)))
+        else:
+            number_of_signals = torch.randint(
+                self.number_of_signals_min, 
+                self.number_of_signals_max + 1, 
+                [], 
+                generator=rng
+            )
+        
+            multiplets_indices = torch.randint(
+                0, 
+                len(self.multiplets_library), 
+                [number_of_signals], 
+                generator=rng
+            )
+        
+        # spectrum width and height factors
+        spectrum_width_factor = random_loguniform(
+            self.spectrum_width_factor_min, 
+            self.spectrum_width_factor_max, 
+            generator=rng
+        )
+
+        spectrum_height_factor = random_loguniform(
+            self.spectrum_height_factor_min, 
+            self.spectrum_height_factor_max, 
+            generator=rng
+        )
+
+        # get and modify peaks parameters data
+        peaks_parameters_data = [self.multiplets_library[idx] for idx in multiplets_indices]
+        for peak_parameters in peaks_parameters_data:
+            
+            # position
+            if not self.use_original_peak_position:
+                new_position_center = random_value(self.tff_min, self.tff_max, generator=rng)
+                peak_parameters["tff_lin"] += new_position_center - torch.mean(peak_parameters["tff_lin"])
+            else:
+                position_shift = random_value(self.position_shift_min, self.position_shift_max, generator=rng)
+                peak_parameters["tff_lin"] += position_shift
+
+            # width
+            multiplet_width_factor = random_loguniform(
+                self.multiplet_width_factor_min, 
+                self.multiplet_width_factor_max, 
+                generator=rng
+            )
+            peak_parameters["twf_lin"] = peak_parameters["twf_lin"] * spectrum_width_factor * multiplet_width_factor
+
+            # height
+            multiplet_height_factor = random_loguniform(
+                self.multiplet_height_factor_min, 
+                self.multiplet_height_factor_max, 
+                generator=rng
+            )
+            peak_parameters["thf_lin"] = peak_parameters["thf_lin"] * spectrum_height_factor * multiplet_height_factor
+
+            # gaussian contribution
+            if self.gaussian_fraction_change_min is not None:
+                gaussian_contribution_shift = random_value(self.gaussian_fraction_change_min, self.gaussian_fraction_change_max, generator=rng)
+                peak_parameters["trf_lin"] = torch.clip(peak_parameters["trf_lin"] + gaussian_contribution_shift, 0., 1.)
+
+        return peaks_parameters_data
+
+
 class ResponseGenerator:
     def __init__(self, response_function_library, response_function_stretch_min=1., response_function_stretch_max=1., pad_to=None,
                  response_function_noise=0.0, flip_response_function=False, seed=42):
@@ -674,7 +904,7 @@ class BaseGeneratorMultithread(ABC):
 
 class Generator(BaseGenerator):
     def __init__(self, clean_spectra_generator, response_generator, noise_generator, batch_size=64,
-                 include_spectrum_data=False, include_peak_mask=False, include_response_function=False, seed=None):
+                 include_spectrum_data=False, include_peak_mask=False, include_response_function=False, input_normalization_height=None, seed=None):
         super().__init__(batch_size=batch_size, seed=seed)
         self.clean_spectra_generator = clean_spectra_generator
         self.response_generator = response_generator
@@ -682,6 +912,7 @@ class Generator(BaseGenerator):
         self.include_spectrum_data = include_spectrum_data
         self.include_peak_mask = include_peak_mask
         self.include_response_function = include_response_function
+        self.input_normalization_height = input_normalization_height
 
     def _generate_element(self, seed):
         # Generate different seeds for each generator from the provided seed
@@ -700,7 +931,15 @@ class Generator(BaseGenerator):
         response_function = self.response_generator(seed=response_seed)
         padding_size = (response_function.shape[-1] - 1)//2
         disturbed_spectrum = torch.nn.functional.conv1d(clean_spectrum, response_function, padding=padding_size)
+
+        if self.input_normalization_height is not None:
+            max_val = torch.max(disturbed_spectrum)
+            clean_spectrum = clean_spectrum / max_val * self.input_normalization_height
+            disturbed_spectrum = disturbed_spectrum / max_val * self.input_normalization_height
+
+        # noise after normalization to better control noise level
         noised_spectrum = self.noise_generator(disturbed_spectrum, seed=noise_seed)
+
         out = {
             'theoretical_spectrum': clean_spectrum,
             'disturbed_spectrum': disturbed_spectrum,
