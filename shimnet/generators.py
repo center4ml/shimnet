@@ -1,5 +1,6 @@
 from enum import Enum
 from copy import deepcopy
+from typing import Optional
 # from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -8,11 +9,18 @@ import torchdata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from abc import ABC, abstractmethod
 
-def random_value(min_value, max_value, generator=None):
+def random_uniform(min_value, max_value, generator=None):
     return (min_value + torch.rand(1, generator=generator) * (max_value - min_value)).item()
+random_value = random_uniform
 
 def random_loguniform(min_value, max_value, generator=None):
     return (min_value * torch.exp(torch.rand(1, generator=generator) * (torch.log(torch.tensor(max_value)) - torch.log(torch.tensor(min_value))))).item()
+
+def random_uniform_vector(min_value, max_value, size, generator=None):
+    return min_value + torch.rand(size, generator=generator) * (max_value - min_value)
+
+def random_loguniform_vector(min_value, max_value, size, generator=None):
+    return min_value * torch.exp(torch.rand(size, generator=generator) * (torch.log(torch.tensor(max_value)) - torch.log(torch.tensor(min_value))))
 
 def spectrum_from_peaks_data(peaks_parameters: dict | list, frq_frq:torch.Tensor, relative_frequency=False):
 
@@ -354,6 +362,8 @@ class PeaksParameterDataGenerator:
                  atom_groups_data_file=None,
                  number_of_signals_min=1, 
                  number_of_signals_max=8,
+                 relative_frequency_min=-0.4,
+                 relative_frequency_max=0.4,
                  spectrum_width_min=0.2, 
                  spectrum_width_max=1,
                  relative_width_min=1, 
@@ -380,6 +390,9 @@ class PeaksParameterDataGenerator:
         self.tff_max = tff_max
         self.number_of_signals_min = number_of_signals_min
         self.number_of_signals_max = number_of_signals_max
+        self.relative_frequency_min = relative_frequency_min
+        self.relative_frequency_max = relative_frequency_max
+
         self.spectrum_width_min = spectrum_width_min
         self.spectrum_width_max = spectrum_width_max
         self.relative_width_min = relative_width_min
@@ -397,9 +410,9 @@ class PeaksParameterDataGenerator:
         
         self.rng_getter = RngGetter(seed=seed)
     
-    def set_tff_range(self, tff_min, tff_max):
-        self.tff_min = tff_min
-        self.tff_max = tff_max
+    def set_frq_range(self, frq_min, frq_max):
+        self.tff_min = frq_min * self.relative_frequency_min
+        self.tff_max = frq_max * self.relative_frequency_max
 
     def __call__(self, seed=None):
         """
@@ -483,6 +496,8 @@ class TheoreticalMultipletSpectraGenerator:
                  frq_step=11160.7142857 / 32768,
                  relative_frequency_min=-0.4, 
                  relative_frequency_max=0.4,
+                 frequency_min=None, #if None, the 0 will be in the center of spectrum
+                 frequency_max=None,
                  include_tff_relative=False,
                  seed=42
                  ):
@@ -493,15 +508,34 @@ class TheoreticalMultipletSpectraGenerator:
         self.relative_frequency_min = relative_frequency_min
         self.relative_frequency_max = relative_frequency_max
         self.include_tff_relative = include_tff_relative
-        self.frq_frq = torch.arange(-pixels // 2, pixels // 2) * frq_step
+        # Frequency axis
+        self.frq_frq, frq_min, frq_max = self._frequency_axis_from_parameters(frq_step, pixels, frequency_min, frequency_max)
         
         self.peaks_parameter_generator = peaks_parameter_generator
-        self.peaks_parameter_generator.set_tff_range(
-            tff_min=relative_frequency_min * pixels * frq_step,
-            tff_max=relative_frequency_max * pixels * frq_step
-        )
+        self.peaks_parameter_generator.set_frq_range(frq_min, frq_max)
 
         # self.rng_getter = RngGetter(seed=seed) # self.rng_getter.get_rng(seed=seed) to get random generator
+
+    def _frequency_axis_from_parameters(self, frq_step, pixels, frequency_min, frequency_max):
+        """frq_step is never None, pixels, frequency_min or frequency_max can be None
+        """
+        # Option 1: from pixels and frq_step
+        if pixels is not None:
+            assert (frequency_min is None) or (frequency_max is None)
+            if (frequency_min is None) and (frequency_max is None): # if both are None, center at 0
+                frequency_min = -(pixels // 2) * frq_step
+            elif frequency_min is None: # frequency_max is not None, use it to calculate frequency_min
+                frequency_min = frequency_max - pixels * frq_step 
+            frq_frq = torch.arange(0, pixels) * frq_step + frequency_min
+        # Option 2: from frequency_min and frequency_max
+        elif (frequency_min is not None) and (frequency_max is not None):
+            pixels = round((frequency_max - frequency_min) / frq_step)
+            frq_frq = torch.arange(0, pixels) * frq_step + frequency_min
+        else:
+            raise ValueError("Insufficient parameters to determine frequency axis.")
+        
+        return frq_frq, frq_frq[0], frq_frq[-1]
+
         
     def __call__(self, seed=None):
         """
@@ -515,7 +549,6 @@ class TheoreticalMultipletSpectraGenerator:
         """
         # Generate peak parameters (peaks_parameter_generator has its own RngGetter)
         peaks_parameters_data = self.peaks_parameter_generator(seed=seed)
-
         
         # Add tff_relative if requested
         if self.include_tff_relative:
@@ -530,10 +563,10 @@ class TheoreticalMultipletSpectraGenerator:
 
 class PeaksParametersNames(Enum):
     """Enum for standardized peak parameter names."""
-    tff_lin = "position_hz"
-    thf_lin = "height"
-    twf_lin = "width_hz"
-    trf_lin = "gaussian_fraction"
+    position_hz ="tff_lin"
+    height = "thf_lin"
+    width_hz = "twf_lin"
+    gaussian_fraction = "trf_lin"
 
     @classmethod
     def keys(cls):
@@ -544,6 +577,7 @@ class PeaksParametersNames(Enum):
         return [member.name for member in cls]
 
 class PeaksParametersParser:
+    """class to convert peaks parameters from `{"width_hz": [...], "height": ..., ...}` format to `{"twf_lin": torch.tensor([...]), "thf_lin": ..., ...}` format."""
     def __init__(self,
         alias_position_hz = None,
         alias_height = None,
@@ -565,16 +599,16 @@ class PeaksParametersParser:
 
     def transform_single_peak(self, peak: dict) -> dict:
         parsed_peak = {
-            PeaksParametersNames("position_hz").name: peak.get(self.alias_position_hz, self.default_position_hz),
-            PeaksParametersNames("height").name: peak.get(self.alias_height, self.default_height),
-            PeaksParametersNames("width_hz").name: peak.get(self.alias_width_hz, self.default_width_hz),
-            PeaksParametersNames("gaussian_fraction").name: peak.get(self.alias_gaussian_fraction, self.default_gaussian_fraction),
+            PeaksParametersNames.position_hz.value: peak.get(self.alias_position_hz, self.default_position_hz),
+            PeaksParametersNames.height.value: peak.get(self.alias_height, self.default_height),
+            PeaksParametersNames.width_hz.value: peak.get(self.alias_width_hz, self.default_width_hz),
+            PeaksParametersNames.gaussian_fraction.value: peak.get(self.alias_gaussian_fraction, self.default_gaussian_fraction),
         }
         # Validate and convert other peak parameters
         for k, v in parsed_peak.items():
             if v is None:
                 raise ValueError(f"Peak parameter '{k}' is None.")
-            parsed_peak[k] = torch.atleast_1d(torch.tensor(v, dtype=torch.float32))
+            parsed_peak[k] = torch.atleast_1d(v.float() if isinstance(v, torch.Tensor) else torch.tensor(v, dtype=torch.float32))
         return parsed_peak
 
     def transform(self, spectrum_peaks: list[dict]) -> list[dict]:
@@ -643,18 +677,26 @@ class MultipletDataFromMultipletsLibrary:
         use_original_peak_position=True,
         number_of_signals_min=None, 
         number_of_signals_max=None,
+        relative_frequency_min=None,
+        relative_frequency_max=None,
         spectrum_width_factor_min=1, 
         spectrum_width_factor_max=1,
         multiplet_width_factor_min=1, 
         multiplet_width_factor_max=1,
+        multiplet_width_additive_min=0, 
+        multiplet_width_additive_max=0,
         spectrum_height_factor_min=1, 
         spectrum_height_factor_max=1,
         multiplet_height_factor_min=1, 
         multiplet_height_factor_max=1,
+        multiplet_height_additive_min=0, 
+        multiplet_height_additive_max=0,
         position_shift_min=0, 
         position_shift_max=0,
         gaussian_fraction_change_min=None, 
         gaussian_fraction_change_max=None,
+        gaussian_fraction_change_additive_min=0.,
+        gaussian_fraction_change_additive_max=0.,
         seed=42
         ):
 
@@ -665,6 +707,8 @@ class MultipletDataFromMultipletsLibrary:
         self.rng_getter = RngGetter(seed=seed)
         self.tff_min = tff_min
         self.tff_max = tff_max
+        self.relative_frequency_min = relative_frequency_min
+        self.relative_frequency_max = relative_frequency_max
         self.use_original_peak_position = use_original_peak_position
         self.number_of_signals_min = number_of_signals_min
         self.number_of_signals_max = number_of_signals_max
@@ -672,18 +716,25 @@ class MultipletDataFromMultipletsLibrary:
         self.spectrum_width_factor_max = spectrum_width_factor_max
         self.multiplet_width_factor_min = multiplet_width_factor_min
         self.multiplet_width_factor_max = multiplet_width_factor_max
+        self.multiplet_width_additive_min = multiplet_width_additive_min
+        self.multiplet_width_additive_max = multiplet_width_additive_max
         self.spectrum_height_factor_min = spectrum_height_factor_min
         self.spectrum_height_factor_max = spectrum_height_factor_max
         self.multiplet_height_factor_min = multiplet_height_factor_min
         self.multiplet_height_factor_max = multiplet_height_factor_max
+        self.multiplet_height_additive_min = multiplet_height_additive_min
+        self.multiplet_height_additive_max = multiplet_height_additive_max
         self.position_shift_min = position_shift_min
         self.position_shift_max = position_shift_max
         self.gaussian_fraction_change_min = gaussian_fraction_change_min
         self.gaussian_fraction_change_max = gaussian_fraction_change_max
+        self.gaussian_fraction_change_additive_min = gaussian_fraction_change_additive_min
+        self.gaussian_fraction_change_additive_max = gaussian_fraction_change_additive_max
 
-    def set_tff_range(self, tff_min, tff_max):
-        self.tff_min = tff_min
-        self.tff_max = tff_max
+    def set_frq_range(self, frq_min, frq_max):
+        self.tff_min = frq_min * self.relative_frequency_min
+        self.tff_max = frq_max * self.relative_frequency_max
+
 
     def __call__(self, seed=None):
         if (not self.use_original_peak_position) and (self.tff_min is None or self.tff_max is None):
@@ -741,7 +792,12 @@ class MultipletDataFromMultipletsLibrary:
                 self.multiplet_width_factor_max, 
                 generator=rng
             )
-            peak_parameters["twf_lin"] = peak_parameters["twf_lin"] * spectrum_width_factor * multiplet_width_factor
+            multiplet_width_additive = random_uniform(
+                self.multiplet_width_additive_min, 
+                self.multiplet_width_additive_max, 
+                generator=rng
+            )
+            peak_parameters["twf_lin"] = peak_parameters["twf_lin"] * spectrum_width_factor * multiplet_width_factor + multiplet_width_additive
 
             # height
             multiplet_height_factor = random_loguniform(
@@ -749,11 +805,18 @@ class MultipletDataFromMultipletsLibrary:
                 self.multiplet_height_factor_max, 
                 generator=rng
             )
-            peak_parameters["thf_lin"] = peak_parameters["thf_lin"] * spectrum_height_factor * multiplet_height_factor
+            multiplet_height_additive = random_uniform(
+                self.multiplet_height_additive_min, 
+                self.multiplet_height_additive_max, 
+                generator=rng
+            )
+            peak_parameters["thf_lin"] = peak_parameters["thf_lin"] * spectrum_height_factor * multiplet_height_factor + multiplet_height_additive
 
             # gaussian contribution
             if self.gaussian_fraction_change_min is not None:
                 gaussian_contribution_shift = random_value(self.gaussian_fraction_change_min, self.gaussian_fraction_change_max, generator=rng)
+                gaussian_contribution_additive = random_value(self.gaussian_fraction_change_additive_min, self.gaussian_fraction_change_additive_max, generator=rng)
+                gaussian_contribution_shift += gaussian_contribution_additive
                 peak_parameters["trf_lin"] = torch.clip(peak_parameters["trf_lin"] + gaussian_contribution_shift, 0., 1.)
 
         return peaks_parameters_data
@@ -966,3 +1029,113 @@ class Generator(BaseGenerator):
         if 'frq_frq' in batch[0]:
             out['frq_frq'] = [item['frq_frq'] for item in batch]
         return out
+
+class PeaksParametersFromSinglets:
+    def __init__(self,
+        singlets_files: list[pd.DataFrame],
+        number_of_signals_min: int = 5,
+        number_of_signals_max: int = 20,
+        use_original_position: bool = True,
+        position_hz_min: Optional[float] = None,
+        position_hz_max: Optional[float] = None,
+        position_hz_change_min: float = 0.0,
+        position_hz_change_max: float = 0.0,
+        relative_frequency_min: float = -0.4, # used only if position_hz_min/max are None
+        relative_frequency_max: float = 0.4,
+        use_original_width: bool = True,
+        width_hz_min: float = 0.2,
+        width_hz_max: float = 2.0,
+        width_factor_min: float = 1.0,
+        width_factor_max: float = 1.0,
+        width_hz_change_min: float = 0.0,
+        width_hz_change_max: float = 0.0,
+        use_original_height: bool = True,
+        height_min: float = 0.1,
+        height_max: float = 10.0,
+        height_factor_min: float = 1.0,
+        height_factor_max: float = 1.0,
+        height_change_min: float = 0.0,
+        height_change_max: float = 0.0,
+        use_original_gaussian_fraction: bool = True,
+        gaussian_fraction_min: float = 0.0,
+        gaussian_fraction_max: float = 1.0,
+        gaussian_fraction_change_min: float = 0.0,
+        gaussian_fraction_change_max: float = 0.0,
+        seed=42
+    ):
+        self.peaks_rows = pd.concat([pd.read_csv(f) for f in singlets_files], ignore_index=True)
+        
+        # number of signals
+        self.number_of_signals_min = number_of_signals_min
+        self.number_of_signals_max = number_of_signals_max
+        # position
+        self.use_original_position = use_original_position
+        self.position_hz_min = position_hz_min
+        self.position_hz_max = position_hz_max
+        self.position_hz_change_min = position_hz_change_min
+        self.position_hz_change_max = position_hz_change_max
+        self.relative_frequency_min = relative_frequency_min
+        self.relative_frequency_max = relative_frequency_max
+        # width
+        self.use_original_width = use_original_width
+        self.width_hz_min = width_hz_min
+        self.width_hz_max = width_hz_max
+        self.width_factor_min = width_factor_min
+        self.width_factor_max = width_factor_max
+        self.width_hz_change_min = width_hz_change_min
+        self.width_hz_change_max = width_hz_change_max
+        # height
+        self.use_original_height = use_original_height
+        self.height_min = height_min
+        self.height_max = height_max
+        self.height_factor_min = height_factor_min
+        self.height_factor_max = height_factor_max
+        self.height_change_min = height_change_min
+        self.height_change_max = height_change_max
+        # gaussian fraction
+        self.use_original_gaussian_fraction = use_original_gaussian_fraction
+        self.gaussian_fraction_min = gaussian_fraction_min
+        self.gaussian_fraction_max = gaussian_fraction_max
+        self.gaussian_fraction_change_min = gaussian_fraction_change_min
+        self.gaussian_fraction_change_max = gaussian_fraction_change_max
+
+        self.rng_getter = RngGetter(seed=seed)
+
+    def set_frq_range(self, frq_min, frq_max):
+        self.position_hz_min = frq_min * self.relative_frequency_min
+        self.position_hz_max = frq_max * self.relative_frequency_max
+
+    def __call__(self, seed=None) -> list[dict]:
+        rng = self.rng_getter.get_rng(seed=seed)
+
+        number_of_signals = torch.randint(
+            low=self.number_of_signals_min,
+            high=min(self.number_of_signals_max, len(self.peaks_rows) + 1),
+            size=[],
+            generator=rng
+        )
+        selected_peaks = self.peaks_rows.sample(n=number_of_signals.item(), random_state=seed)
+
+        multiplet_data = {}
+        # position
+        if self.use_original_position:
+            multiplet_data[PeaksParametersNames.position_hz.value] = torch.tensor(selected_peaks["position_hz"].values, dtype=torch.float32) + random_uniform_vector(self.position_hz_change_min, self.position_hz_change_max, size=len(selected_peaks))
+        else:
+            multiplet_data[PeaksParametersNames.position_hz.value] = random_uniform_vector(self.position_hz_min, self.position_hz_max, size=len(selected_peaks))
+        # width
+        if self.use_original_width:
+            multiplet_data[PeaksParametersNames.width_hz.value] = torch.tensor(selected_peaks["width_hz"].values, dtype=torch.float32) * random_uniform_vector(self.width_factor_min, self.width_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.width_hz_change_min, self.width_hz_change_max, size=len(selected_peaks))
+        else:
+            multiplet_data[PeaksParametersNames.width_hz.value] = random_loguniform_vector(self.width_hz_min, self.width_hz_max, size=len(selected_peaks))
+        # height
+        if self.use_original_height:
+            multiplet_data[PeaksParametersNames.height.value] = torch.tensor(selected_peaks["height"].values, dtype=torch.float32) * random_uniform_vector(self.height_factor_min, self.height_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.height_change_min, self.height_change_max, size=len(selected_peaks))
+        else:
+            multiplet_data[PeaksParametersNames.height.value] = random_loguniform_vector(self.height_min, self.height_max, size=len(selected_peaks))
+        # gaussian fraction
+        if self.use_original_gaussian_fraction:
+            multiplet_data[PeaksParametersNames.gaussian_fraction.value] = torch.clamp(torch.tensor(selected_peaks["gaussian_fraction"].values, dtype=torch.float32) + random_uniform_vector(self.gaussian_fraction_change_min, self.gaussian_fraction_change_max, size=len(selected_peaks)), 0.0, 1.0)
+        else:
+            multiplet_data[PeaksParametersNames.gaussian_fraction.value] = random_uniform_vector(self.gaussian_fraction_min, self.gaussian_fraction_max, size=len(selected_peaks))
+
+        return [multiplet_data]

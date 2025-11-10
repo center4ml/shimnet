@@ -7,13 +7,13 @@ model:
 training:
 - batch_size: 64
   learning_rate: 0.001
-  max_iters: 1600000
+  max_iters: 16000
 - batch_size: 512
   learning_rate: 0.001
-  max_iters: 25600000
+  max_iters: 256000
 - batch_size: 512
   learning_rate: 0.0005
-  max_iters: 12800000
+  max_iters: 128000
 losses_weights:
   clean: 1.0
   noised: 1.0
@@ -27,13 +27,13 @@ data:
     _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
     pixels: 2048
     frq_step: ${metadata.frq_step}
-    relative_frequency_min: -0.4
-    relative_frequency_max: 0.4
     peaks_parameter_generator:
         _target_: shimnet.generators.PeaksParameterDataGenerator
         atom_groups_data_file: data/multiplets_10000_parsed.txt
         number_of_signals_min: 2
         number_of_signals_max: 5
+        relative_frequency_min: -0.4
+        relative_frequency_max: 0.4
         spectrum_width_min: 0.2
         spectrum_width_max: 1.0
         relative_width_min: 1.0

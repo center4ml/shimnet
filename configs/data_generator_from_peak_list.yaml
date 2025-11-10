@@ -3,10 +3,15 @@ data:
   input_normalization_height: 16.0
   clean_spectra_generator:
     _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
+    pixels: 2048
+    frq_step: ${metadata.frq_step}
     peaks_parameter_generator:
       _target_: shimnet.generators.MultipletDataFromMultipletsLibrary
       number_of_signals_min: 2 # null to use all signals (both min and max must be null)
       number_of_signals_max: 10 # null to use all signals (both min and max must be null)
+      use_original_peak_position: false
+      relative_frequency_min: -0.4
+      relative_frequency_max: 0.4
       multiplet_height_factor_min: 0.5
       multiplet_height_factor_max: 2
       multiplet_width_factor_min: 0.5
@@ -19,13 +24,7 @@ data:
         - data/multiplets_lists/mieszanina_poReakcji_mono-click.csv
         peak_data_parser:
           _target_: shimnet.generators.PeaksParametersParser
-      use_original_peak_position: false
       seed: null
-    pixels: 2048
-    frq_step: ${metadata.frq_step}
-    include_tff_relative: true
-    relative_frequency_min: -0.4
-    relative_frequency_max: 0.4
   response_generator:
     _target_: shimnet.generators.ResponseGenerator
     response_function_library:
@@ -40,4 +39,7 @@ data:
   include_peak_mask: false
   include_response_function: true
   seed: 44 # null means random seed
-  batch_size: 64 # to be set in training script
+  batch_size: null # to be set in training script
+metadata:
+  frq_step: 0.30048
+  spectrometer_frequency: 600.0
