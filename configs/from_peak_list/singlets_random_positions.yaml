@@ -1,0 +1,64 @@
+model:
+  name: ShimNetWithSCRF
+  kwargs:
+    rensponse_length: 81
+    resnponse_head_dims:
+    - 128
+training:
+- batch_size: 64
+  learning_rate: 0.001
+  max_iters: 1600000
+- batch_size: 512
+  learning_rate: 0.001
+  max_iters: 25600000
+- batch_size: 512
+  learning_rate: 0.0005
+  max_iters: 12800000
+losses_weights:
+  clean: 1.0
+  noised: 1.0
+  response: 10.0 # increased due to input height 16
+data:
+  _target_: shimnet.generators.Generator
+  input_normalization_height: 16.0
+  clean_spectra_generator:
+    _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
+    pixels: 2048
+    frq_step: ${metadata.frq_step}
+    relative_frequency_min: -0.4
+    relative_frequency_max: 0.4
+    peaks_parameter_generator:
+      _target_: shimnet.generators.PeaksParametersFromSinglets
+      number_of_signals_min: 15
+      number_of_signals_max: 30
+      use_original_position: false
+      use_original_height: false
+      height_min: 0.02
+      height_max: 10.0
+      width_factor_min: 0.8
+      width_factor_max: 1.2
+      gaussian_fraction_change_min: -0.2
+      gaussian_fraction_change_max: 0.2
+      singlets_files:
+      - data/multiplets_lists/azydekbenzylu_sub1_mono-click.csv
+  response_generator:
+    _target_: shimnet.generators.ResponseGenerator
+    response_function_library:
+      _target_: shimnet.generators.ResponseLibrary
+      response_files:
+      - data/scrf_81_600MHz.pt
+  noise_generator:
+    _target_: shimnet.generators.NoiseGenerator
+    spectrum_noise_min: 0.0
+    spectrum_noise_max: 0.01
+  include_spectrum_data: false
+  include_peak_mask: false
+  include_response_function: true
+  seed: 44 # null means random seed
+  batch_size: null # to be set in training script
+logging:
+  step: 1000000
+  num_plots: 32
+metadata:
+  frq_step: 0.30048
+  spectrometer_frequency: 600.0
