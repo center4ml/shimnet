@@ -411,8 +411,10 @@ class PeaksParameterDataGenerator:
         self.rng_getter = RngGetter(seed=seed)
     
     def set_frq_range(self, frq_min, frq_max):
-        self.tff_min = frq_min * self.relative_frequency_min
-        self.tff_max = frq_max * self.relative_frequency_max
+        frq_amplitude = frq_max - frq_min
+        frq_center = (frq_max + frq_min) / 2
+        self.tff_min = frq_center + frq_amplitude * self.relative_frequency_min
+        self.tff_max = frq_center + frq_amplitude * self.relative_frequency_max
 
     def __call__(self, seed=None):
         """
@@ -533,7 +535,6 @@ class TheoreticalMultipletSpectraGenerator:
             frq_frq = torch.arange(0, pixels) * frq_step + frequency_min
         else:
             raise ValueError("Insufficient parameters to determine frequency axis.")
-        
         return frq_frq, frq_frq[0], frq_frq[-1]
 
         
@@ -565,7 +566,7 @@ class PeaksParametersNames(Enum):
     """Enum for standardized peak parameter names."""
     position_hz ="tff_lin"
     height = "thf_lin"
-    width_hz = "twf_lin"
+    halfwidth_hz = "twf_lin"
     gaussian_fraction = "trf_lin"
 
     @classmethod
@@ -587,6 +588,7 @@ class PeaksParametersParser:
         default_height = None,
         default_width_hz = None,
         default_gaussian_fraction = 0.,
+        convert_width_to_halfwidth = True
         ):
         self.alias_position_hz = alias_position_hz if alias_position_hz is not None else "position_hz"
         self.alias_height = alias_height if alias_height is not None else "height"
@@ -596,12 +598,13 @@ class PeaksParametersParser:
         self.default_height = default_height
         self.default_width_hz = default_width_hz
         self.default_gaussian_fraction = default_gaussian_fraction
+        self.convert_width_to_halfwidth = convert_width_to_halfwidth
 
     def transform_single_peak(self, peak: dict) -> dict:
         parsed_peak = {
             PeaksParametersNames.position_hz.value: peak.get(self.alias_position_hz, self.default_position_hz),
             PeaksParametersNames.height.value: peak.get(self.alias_height, self.default_height),
-            PeaksParametersNames.width_hz.value: peak.get(self.alias_width_hz, self.default_width_hz),
+            PeaksParametersNames.halfwidth_hz.value: (0.5 if self.convert_width_to_halfwidth else 1.) * peak.get(self.alias_width_hz, self.default_width_hz),
             PeaksParametersNames.gaussian_fraction.value: peak.get(self.alias_gaussian_fraction, self.default_gaussian_fraction),
         }
         # Validate and convert other peak parameters
@@ -732,8 +735,10 @@ class MultipletDataFromMultipletsLibrary:
         self.gaussian_fraction_change_additive_max = gaussian_fraction_change_additive_max
 
     def set_frq_range(self, frq_min, frq_max):
-        self.tff_min = frq_min * self.relative_frequency_min
-        self.tff_max = frq_max * self.relative_frequency_max
+        frq_amplitude = frq_max - frq_min
+        frq_center = (frq_max + frq_min) / 2
+        self.tff_min = frq_center + frq_amplitude * self.relative_frequency_min
+        self.tff_max = frq_center + frq_amplitude * self.relative_frequency_max
 
 
     def __call__(self, seed=None):
@@ -1049,6 +1054,7 @@ class PeaksParametersFromSinglets:
         width_factor_max: float = 1.0,
         width_hz_change_min: float = 0.0,
         width_hz_change_max: float = 0.0,
+        convert_width_to_halfwidth: bool = True,
         use_original_height: bool = True,
         height_min: float = 0.1,
         height_max: float = 10.0,
@@ -1084,6 +1090,7 @@ class PeaksParametersFromSinglets:
         self.width_factor_max = width_factor_max
         self.width_hz_change_min = width_hz_change_min
         self.width_hz_change_max = width_hz_change_max
+        self.convert_width_to_halfwidth = convert_width_to_halfwidth # if True, the original widths will be divided by 2
         # height
         self.use_original_height = use_original_height
         self.height_min = height_min
@@ -1102,8 +1109,10 @@ class PeaksParametersFromSinglets:
         self.rng_getter = RngGetter(seed=seed)
 
     def set_frq_range(self, frq_min, frq_max):
-        self.position_hz_min = frq_min * self.relative_frequency_min
-        self.position_hz_max = frq_max * self.relative_frequency_max
+        frq_amplitude = frq_max - frq_min
+        frq_center = (frq_max + frq_min) / 2
+        self.position_hz_min = frq_center + frq_amplitude * self.relative_frequency_min
+        self.position_hz_max = frq_center + frq_amplitude * self.relative_frequency_max
 
     def __call__(self, seed=None) -> list[dict]:
         rng = self.rng_getter.get_rng(seed=seed)
@@ -1124,9 +1133,9 @@ class PeaksParametersFromSinglets:
             multiplet_data[PeaksParametersNames.position_hz.value] = random_uniform_vector(self.position_hz_min, self.position_hz_max, size=len(selected_peaks))
         # width
         if self.use_original_width:
-            multiplet_data[PeaksParametersNames.width_hz.value] = torch.tensor(selected_peaks["width_hz"].values, dtype=torch.float32) * random_uniform_vector(self.width_factor_min, self.width_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.width_hz_change_min, self.width_hz_change_max, size=len(selected_peaks))
+            multiplet_data[PeaksParametersNames.halfwidth_hz.value] = (0.5 if self.convert_width_to_halfwidth else 1.)*torch.tensor(selected_peaks["width_hz"].values, dtype=torch.float32) * random_uniform_vector(self.width_factor_min, self.width_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.width_hz_change_min, self.width_hz_change_max, size=len(selected_peaks))
         else:
-            multiplet_data[PeaksParametersNames.width_hz.value] = random_loguniform_vector(self.width_hz_min, self.width_hz_max, size=len(selected_peaks))
+            multiplet_data[PeaksParametersNames.halfwidth_hz.value] = random_loguniform_vector(self.width_hz_min, self.width_hz_max, size=len(selected_peaks))
         # height
         if self.use_original_height:
             multiplet_data[PeaksParametersNames.height.value] = torch.tensor(selected_peaks["height"].values, dtype=torch.float32) * random_uniform_vector(self.height_factor_min, self.height_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.height_change_min, self.height_change_max, size=len(selected_peaks))
