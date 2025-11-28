@@ -4,10 +4,12 @@
 
 # training outputs
 runs/
+
 # data files
-data/
+**/data/*
 # but not some peak lists
-!data/multiplets_lists/
+!/data/multiplets_lists/
+# data in subdirectories
 
 # typically weights and data
 *.pt
