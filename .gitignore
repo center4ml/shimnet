@@ -6,6 +6,9 @@
 runs/
 # data files
 data/
+# but not some peak lists
+!data/multiplets_lists/
+
 # typically weights and data
 *.pt
 
@@ -15,3 +18,7 @@ data/
 # package building
 build/
 *shimnet.egg-info/
+
+# local
+debugging/
+run_trainings.sh

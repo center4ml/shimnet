@@ -33,7 +33,7 @@ if __name__ == "__main__":
     output_dir.mkdir(exist_ok=True, parents=True)
 
     config = OmegaConf.load(args.config)
-    model_ppm_per_point = config.data.frq_step / config.metadata.spectrometer_frequency
+    model_ppm_per_point = config.data.get("frq_step", config.metadata.get("frq_step")) / config.metadata.spectrometer_frequency
     predictor = initialize_predictor(config, args.weights)
 
     for input_file in args.input_files:
