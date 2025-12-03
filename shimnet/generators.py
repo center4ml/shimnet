@@ -1,11 +1,9 @@
 from enum import Enum
 from copy import deepcopy
 from typing import Optional
-# from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-import torchdata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from abc import ABC, abstractmethod
 
@@ -244,92 +242,6 @@ def collate_with_spectrum_data(batch):
     out = {k: torch.stack([item[k] for item in batch]) for k in tensor_keys}    
     out["theoretical_spectrum_data"] = [item["theoretical_spectrum_data"] for item in batch]
     return out
-
-def get_datapipe(
-    response_functions_files,
-    atom_groups_data_file=None,
-    batch_size=64,
-    pixels=2048, frq_step=11160.7142857 / 32768,
-    number_of_signals_min=1, number_of_signals_max=8,
-    spectrum_width_min=0.2, spectrum_width_max=1,
-    relative_width_min=1, relative_width_max=2,
-    relative_height_min=1, relative_height_max=1,
-    relative_frequency_min=-0.4, relative_frequency_max=0.4,
-    thf_min=1/16, thf_max=16,
-    trf_min=0, trf_max=1,
-    multiplicity_j1_min=0, multiplicity_j1_max=15,
-    multiplicity_j2_min=0, multiplicity_j2_max=15,
-    response_function_stretch_min=0.5,
-    response_function_stretch_max=2.0,
-    response_function_noise=0.,
-    spectrum_noise_min=0.,
-    spectrum_noise_max=1/64,
-    include_spectrum_data=False,
-    include_peak_mask=False,
-    include_response_function=False,
-    flip_response_function=False
-):
-    # singlets
-    if atom_groups_data_file is None:
-        atom_groups_data = np.ones((1,3), dtype=int)
-    else:
-        atom_groups_data = np.loadtxt(atom_groups_data_file, usecols=(1,2,3), dtype=int)
-    response_function_library = ResponseLibrary(response_functions_files)
-    g = generator(
-        theoretical_generator_params=dict(
-            atom_groups_data=atom_groups_data,
-            pixels=pixels, frq_step=frq_step,
-            number_of_signals_min=number_of_signals_min, number_of_signals_max=number_of_signals_max,
-            spectrum_width_min=spectrum_width_min, spectrum_width_max=spectrum_width_max,
-            relative_width_min=relative_width_min, relative_width_max=relative_width_max,
-            relative_height_min=relative_height_min, relative_height_max=relative_height_max,
-            relative_frequency_min=relative_frequency_min, relative_frequency_max=relative_frequency_max,
-            thf_min=thf_min, thf_max=thf_max,
-            trf_min=trf_min, trf_max=trf_max,
-            multiplicity_j1_min=multiplicity_j1_min, multiplicity_j1_max=multiplicity_j1_max,
-            multiplicity_j2_min=multiplicity_j2_min, multiplicity_j2_max=multiplicity_j2_max
-        ),
-        response_function_library=response_function_library,
-        response_function_stretch_min=response_function_stretch_min,
-        response_function_stretch_max=response_function_stretch_max,
-        response_function_noise=response_function_noise,
-        spectrum_noise_min=spectrum_noise_min,
-        spectrum_noise_max=spectrum_noise_max,
-        include_spectrum_data=include_spectrum_data,
-        include_peak_mask=include_peak_mask,
-        include_response_function=include_response_function,
-        flip_response_function=flip_response_function
-    )
-    
-    pipe = torchdata.datapipes.iter.IterableWrapper(g, deepcopy=False)
-    pipe = pipe.batch(batch_size)
-    pipe = pipe.collate(collate_fn=collate_with_spectrum_data if include_spectrum_data else None)
-    
-    return pipe
-
-    # response_functions_files,
-    # atom_groups_data_file=None,
-    # batch_size=64,
-    # pixels=2048, frq_step=11160.7142857 / 32768,
-    # number_of_signals_min=1, number_of_signals_max=8,
-    # spectrum_width_min=0.2, spectrum_width_max=1,
-    # relative_width_min=1, relative_width_max=2,
-    # relative_height_min=1, relative_height_max=1,
-    # relative_frequency_min=-0.4, relative_frequency_max=0.4,
-    # thf_min=1/16, thf_max=16,
-    # trf_min=0, trf_max=1,
-    # multiplicity_j1_min=0, multiplicity_j1_max=15,
-    # multiplicity_j2_min=0, multiplicity_j2_max=15,
-    # response_function_stretch_min=0.5,
-    # response_function_stretch_max=2.0,
-    # response_function_noise=0.,
-    # spectrum_noise_min=0.,
-    # spectrum_noise_max=1/64,
-    # include_spectrum_data=False,
-    # include_peak_mask=False,
-    # include_response_function=False,
-    # flip_response_function=False
-
 
 class RngGetter:
     def __init__(self, seed=42):

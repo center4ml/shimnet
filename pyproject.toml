@@ -7,7 +7,7 @@ packages = ["shimnet"]   # only include this package
 
 [project]
 name = "shimnet"
-version = "0.1.0"
+version = "0.1.1"
 description = "Package for ShimNet: A Neural Network for Postacquisition Improvement of NMR Spectra Distorted by Magnetic-Field Inhomogeneity https://pubs.acs.org/doi/full/10.1021/acs.jpcb.5c02632"
 authors = [
     {name = "Marek Bukowicki", email = "m.bukowicki@uw.edu.pl"},
@@ -15,24 +15,29 @@ authors = [
 readme = "Readme.md"
 requires-python = ">=3.10"
 dependencies = [
-    "nmrglue==0.11",
-    "torchdata==0.9.0",
-    "numpy==2.0.2",
-    "matplotlib==3.9.3",
-    "pandas==2.2.3",
-    "tqdm==4.67.1",
-    "hydra-core==1.3.2"
 ]
 
 [project.optional-dependencies]
 # GPU installs the default torch build from PyPI (CUDA-enabled by default)
 gpu = [
+    "nmrglue==0.11",
+    "numpy==2.0.2",
+    "matplotlib==3.9.3",
+    "pandas==2.2.3",
+    "tqdm==4.67.1",
+    "hydra-core==1.3.2",
     "torch==2.5.1",
     "torchaudio==2.5.1"
 ]
 
 # CPU needs extra index URL: pip install shimnet[cpu] --extra-index-url https://download.pytorch.org/whl/cpu
 cpu = [
+    "nmrglue==0.11",
+    "numpy==2.0.2",
+    "matplotlib==3.9.3",
+    "pandas==2.2.3",
+    "tqdm==4.67.1",
+    "hydra-core==1.3.2",
     "torch==2.5.1+cpu",
     "torchaudio==2.5.1+cpu"
 ]
@@ -44,4 +49,10 @@ gui = [
     "ipykernel",
     "psutil",
     "pexpect"
+]
+
+# lightweight verion for Colab or another environment with pre-installed torch and common packages
+colab = [
+    "nmrglue",
+    "hydra-core",
 ]
