@@ -59,17 +59,23 @@ model:
 training:
 - batch_size: 64
   learning_rate: 0.001
-  max_iters: 16000
+  max_iters: 1600000
 - batch_size: 512
   learning_rate: 0.001
-  max_iters: 256000
+  max_iters: 25600000
 - batch_size: 512
-  learning_rate: 0.0005
-  max_iters: 128000
-losses_weights:
-  clean: 1.0
-  noised: 1.0
-  response: 1.0
+  learning_rate: 0.0002
+  max_iters: 12800000
+losses:
+  clean:
+    function: mae
+    weight: 1.0
+  noised:
+    function: mae
+    weight: 1.0
+  response:
+    function: mae
+    weight: 1.0
 data:
   _target_: shimnet.generators.Generator
   include_response_function: true

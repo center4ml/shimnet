@@ -157,6 +157,25 @@ def evaluate_model(stage=0, epoch=0):
         plt.close("all")
 
 
+def get_loss_functions(config):
+    if not "losses" in config: # backward compatibility
+        loss_function = torch.nn.functional.mse_loss
+        return {k: {"function": loss_function, "weight": config.losses_weights.get(k, 1.0)} for k in ["clean", "noised", "response"]}
+    loss_functions = {}
+    for loss_name, loss_info in config.losses.items():
+        if loss_info.function == "mse":
+            loss_function = torch.nn.functional.mse_loss
+        elif loss_info.function == "mae":
+            loss_function = torch.nn.functional.l1_loss
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_info.function}")
+        loss_functions[loss_name] = {
+            "function": loss_function,
+            "weight": loss_info.weight
+        }
+    return loss_functions
+
+loss_calculation = get_loss_functions(config)
 
 print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
 for i_stage, training_stage in enumerate(config.training):
@@ -188,11 +207,11 @@ for i_stage, training_stage in enumerate(config.training):
         # run model
         out = model(batch['noised_spectrum'].to(device))
         # calculate losses
-        loss_response = torch.nn.functional.mse_loss(out['response'], batch['response_function'].squeeze(dim=(1,2)).to(device))
-        loss_clean = torch.nn.functional.mse_loss(out['denoised'], batch['theoretical_spectrum'].to(device))
+        loss_response = loss_calculation["response"]["function"](out['response'], batch['response_function'].squeeze(dim=(1,2)).to(device))
+        loss_clean = loss_calculation["clean"]["function"](out['denoised'], batch['theoretical_spectrum'].to(device))
         noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same")
-        loss_noised = torch.nn.functional.mse_loss(noised_est, batch['noised_spectrum'].to(device))
-        loss = config.losses_weights.response*loss_response + config.losses_weights.clean*loss_clean + config.losses_weights.noised*loss_noised
+        loss_noised = loss_calculation["noised"]["function"](noised_est, batch['noised_spectrum'].to(device))
+        loss = loss_calculation["response"]["weight"]*loss_response + loss_calculation["clean"]["weight"]*loss_clean + loss_calculation["noised"]["weight"]*loss_noised
         
         # logging
         losses_history.append(loss_clean.item())
