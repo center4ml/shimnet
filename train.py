@@ -57,7 +57,7 @@ for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
     }
 
 # initialization        
-model = instantiate({"_target_": f"shimnet.models.{config.model.name}", **config.model.kwargs}).to(device)
+model = instantiate(config.model).to(device)
 model_weights_file = run_dir / f'model.pt'
 optimizer = torch.optim.Adam(model.parameters())
 optimizer_weights_file = run_dir / f'optimizer.pt'
