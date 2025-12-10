@@ -1,4 +1,5 @@
 import numpy as np
+from hydra.utils import instantiate
 
 from .models import ShimNetWithSCRF, Predictor
 
@@ -19,6 +20,12 @@ def resample_output_spectrum(input_freqs, freqs, prediction):
     return prediction
 
 def initialize_predictor(config, weights_file):
-    model = ShimNetWithSCRF(**config.model.kwargs)
+    if "_target_" in config.model:
+        model = instantiate(config.model)
+    else:
+        model = ShimNetWithSCRF(**config.model.kwargs)
     predictor = Predictor(model, weights_file)
     return predictor
+
+def get_model_ppm_per_point(config):
+    return config.data.get("frq_step", config.metadata.get("frq_step")) / config.metadata.spectrometer_frequency
