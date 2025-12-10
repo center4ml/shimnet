@@ -21,6 +21,10 @@ runs/
 build/
 *shimnet.egg-info/
 
+# credentials
+credentials.json
+notebooks/token.pickle
+
 # local
 debugging/
 run_trainings.sh
