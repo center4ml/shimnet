@@ -1,5 +1,5 @@
 ---
-title: ShimNet
+title: ShimNet - development
 emoji: 💻
 colorFrom: indigo
 colorTo: yellow
