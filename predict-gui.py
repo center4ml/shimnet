@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 import gradio as gr
 import plotly.graph_objects as go
 
-from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor
+from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor, get_model_ppm_per_point
 
 # silent deprecation warnings
 import warnings
@@ -35,7 +35,7 @@ def process_file(input_file, config_file, weights_file, input_spectrometer_frequ
         input_spectrometer_frequency = None
     # Load configuration and initialize predictor
     config = OmegaConf.load(config_file)
-    model_ppm_per_point = config.data.frq_step / config.metadata.spectrometer_frequency
+    model_ppm_per_point = get_model_ppm_per_point(config)
     predictor = initialize_predictor(config, weights_file)
 
     # Load input data
