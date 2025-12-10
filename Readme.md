@@ -1,3 +1,14 @@
+---
+title: ShimNet - development
+emoji: 💻
+colorFrom: indigo
+colorTo: yellow
+sdk: docker
+pinned: false
+license: mit
+short_description: ShimNet Spectra Correction (development)
+---
+
 # ShimNet
 ShimNet is a data-driven AI solution to improve high-resolution nuclear magnetic resonance (NMR) spectra
 distorted by the inhomogeneous magnetic field (less than optimal shimming). To use it, the experimental training data has to be collected (see **Data collection** below).
