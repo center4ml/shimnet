@@ -182,10 +182,10 @@ loss_calculation = get_loss_functions(config)
 print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
-        model.load_state_dict(torch.load(model_weights_file), weights_only=True)
+        model.load_state_dict(torch.load(model_weights_file, weights_only=True))
 
     if optimizer_weights_file.is_file():
-        optimizer.load_state_dict(torch.load(optimizer_weights_file), weights_only=True)
+        optimizer.load_state_dict(torch.load(optimizer_weights_file, weights_only=True))
     optimizer.param_groups[0]['lr'] = training_stage.learning_rate
 
     pipe = get_datapipe(config.data, batch_size=training_stage.batch_size, alter_seed_by=i_stage)
