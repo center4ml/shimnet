@@ -11,11 +11,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: false  # Enable if you have files >10MB
+          lfs: true  # Enable if you have files >10MB
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_URL: https://marekb-sci:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/NMR-CeNT-UW/ShimNet-development
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git push --force-with-lease https://marekb-sci:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/NMR-CeNT-UW/ShimNet-development hfdeploy:main
+          # Add temp remote, fetch to update lease, push, then clean up
+          git remote add hf $HF_URL
+          git fetch hf main
+          git push --force-with-lease hf hfdeploy:main
+          git remote remove hf
