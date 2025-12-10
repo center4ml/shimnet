@@ -1,12 +1,12 @@
 ---
-title: ShimNet - development
+title: ShimNet
 emoji: 💻
 colorFrom: indigo
 colorTo: yellow
 sdk: docker
 pinned: false
 license: mit
-short_description: ShimNet Spectra Correction (development)
+short_description: ShimNet Spectra Correction
 ---
 
 # ShimNet
