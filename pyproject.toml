@@ -48,7 +48,8 @@ gui = [
     "plotly==6.0.1",
     "ipykernel",
     "psutil",
-    "pexpect"
+    "pexpect",
+    "requests"
 ]
 
 # lightweight verion for Colab or another environment with pre-installed torch and common packages

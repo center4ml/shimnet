@@ -10,6 +10,10 @@ ALL_FILES_TO_DOWNLOAD = {
     {
         "url": "https://drive.google.com/uc?export=download&id=1_VxOpFGJcFsOa5DHOW2GJbP8RvHCmC1N",
         "destination": "weights/shimnet_600MHz.pt"
+    },
+    {
+        "url": "https://drive.google.com/uc?export=download&id=1643Il3qgCupY0n8Mar6WBc2WVuoQRzie",
+        "destination": "weights/shimnet_600MHz_M-E01.pt"
     }],
     "SCRF": [{
         "url": "https://drive.google.com/uc?export=download&id=113al7A__yYALx_2hkESuzFIDU3feVtNY",
