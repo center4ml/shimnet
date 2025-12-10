@@ -140,7 +140,7 @@ with gr.Blocks() as app:
         with gr.Column():
             model_selection = gr.Radio(
                 label="Select Model",
-                choices=["600 MHz", "700 MHz", "Custom"],
+                choices=["600 MHz", "700 MHz", "M-E01", "Custom"],
                 value="600 MHz"
             )
             config_file = gr.File(label="Custom Config File (.yaml)", visible=False, height=120)
@@ -189,6 +189,9 @@ with gr.Blocks() as app:
         elif model_selection == "700 MHz":
             config_file = os.path.join(os.path.dirname(__file__), "configs/shimnet_700.yaml")
             weights_file = os.path.join(os.path.dirname(__file__), "weights/shimnet_700MHz.pt")
+        elif model_selection == "M-E01":
+            config_file = os.path.join(os.path.dirname(__file__), "configs/shimnet_600_M-E01.yaml")
+            weights_file = os.path.join(os.path.dirname(__file__), "weights/shimnet_600MHz_M-E01.pt")
         else:
             config_file = config_file.name
             weights_file = weights_file.name
