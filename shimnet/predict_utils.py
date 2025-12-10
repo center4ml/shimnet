@@ -19,11 +19,15 @@ def resample_output_spectrum(input_freqs, freqs, prediction):
     prediction = np.interp(input_freqs, freqs, prediction)
     return prediction
 
-def initialize_predictor(config, weights_file):
+def initialize_model(config):
     if "_target_" in config.model:
         model = instantiate(config.model)
     else:
         model = ShimNetWithSCRF(**config.model.kwargs)
+    return model
+
+def initialize_predictor(config, weights_file):
+    model = initialize_model(config)
     predictor = Predictor(model, weights_file)
     return predictor
 

@@ -16,6 +16,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module='torchdata')
 
 from shimnet.predict_utils import Defaults as PredictDefaults
+from shimnet.predict_utils import initialize_model
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 if len(sys.argv) < 2:
@@ -56,8 +57,9 @@ for spectra_data in config.logging.get('extra_spectra_for_evaluation', []):
         'spectrum': spectrum,
     }
 
-# initialization        
-model = instantiate({"_target_": f"shimnet.models.{config.model.name}", **config.model.kwargs}).to(device)
+# initialization
+model = initialize_model(config).to(device)
+
 model_weights_file = run_dir / f'model.pt'
 optimizer = torch.optim.Adam(model.parameters())
 optimizer_weights_file = run_dir / f'optimizer.pt'
@@ -157,14 +159,33 @@ def evaluate_model(stage=0, epoch=0):
         plt.close("all")
 
 
+def get_loss_functions(config):
+    if not "losses" in config: # backward compatibility
+        loss_function = torch.nn.functional.mse_loss
+        return {k: {"function": loss_function, "weight": config.losses_weights.get(k, 1.0)} for k in ["clean", "noised", "response"]}
+    loss_functions = {}
+    for loss_name, loss_info in config.losses.items():
+        if loss_info.function == "mse":
+            loss_function = torch.nn.functional.mse_loss
+        elif loss_info.function == "mae":
+            loss_function = torch.nn.functional.l1_loss
+        else:
+            raise ValueError(f"Unsupported loss function: {loss_info.function}")
+        loss_functions[loss_name] = {
+            "function": loss_function,
+            "weight": loss_info.weight
+        }
+    return loss_functions
+
+loss_calculation = get_loss_functions(config)
 
 print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
-        model.load_state_dict(torch.load(model_weights_file, weights_only=True))
+        model.load_state_dict(torch.load(model_weights_file), weights_only=True)
 
     if optimizer_weights_file.is_file():
-        optimizer.load_state_dict(torch.load(optimizer_weights_file, weights_only=True))
+        optimizer.load_state_dict(torch.load(optimizer_weights_file), weights_only=True)
     optimizer.param_groups[0]['lr'] = training_stage.learning_rate
 
     pipe = get_datapipe(config.data, batch_size=training_stage.batch_size, alter_seed_by=i_stage)
@@ -188,11 +209,11 @@ for i_stage, training_stage in enumerate(config.training):
         # run model
         out = model(batch['noised_spectrum'].to(device))
         # calculate losses
-        loss_response = torch.nn.functional.mse_loss(out['response'], batch['response_function'].squeeze(dim=(1,2)).to(device))
-        loss_clean = torch.nn.functional.mse_loss(out['denoised'], batch['theoretical_spectrum'].to(device))
+        loss_response = loss_calculation["response"]["function"](out['response'], batch['response_function'].squeeze(dim=(1,2)).to(device))
+        loss_clean = loss_calculation["clean"]["function"](out['denoised'], batch['theoretical_spectrum'].to(device))
         noised_est = torchaudio.functional.convolve(out['denoised'], out['response'].flip(dims=(-1,)).unsqueeze(1), mode="same")
-        loss_noised = torch.nn.functional.mse_loss(noised_est, batch['noised_spectrum'].to(device))
-        loss = config.losses_weights.response*loss_response + config.losses_weights.clean*loss_clean + config.losses_weights.noised*loss_noised
+        loss_noised = loss_calculation["noised"]["function"](noised_est, batch['noised_spectrum'].to(device))
+        loss = loss_calculation["response"]["weight"]*loss_response + loss_calculation["clean"]["weight"]*loss_clean + loss_calculation["noised"]["weight"]*loss_noised
         
         # logging
         losses_history.append(loss_clean.item())
