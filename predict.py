@@ -6,7 +6,7 @@ from pathlib import Path
 import sys, os
 from omegaconf import OmegaConf
 
-from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor
+from shimnet.predict_utils import Defaults, resample_input_spectrum, resample_output_spectrum, initialize_predictor, get_model_ppm_per_point
 
 
 # silent deprecation warnings
