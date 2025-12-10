@@ -1,0 +1,21 @@
+name: Sync to Hugging Face hub
+on:
+  push:
+    branches:
+      - hfdeploy
+  workflow_dispatch:  # Allows manual trigger
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false  # Enable if you have files >10MB
+      - name: Push to hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git push --force-with-lease https://marekb-sci:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/NMR-CeNT-UW/ShimNet-development hfdeploy:main
