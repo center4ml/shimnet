@@ -986,6 +986,7 @@ class PeaksParametersFromSinglets:
         # number of signals
         self.number_of_signals_min = number_of_signals_min
         self.number_of_signals_max = number_of_signals_max
+        self.use_all_singlets = (number_of_signals_min is None) and (number_of_signals_max is None)
         # position
         self.use_original_position = use_original_position
         self.position_hz_min = position_hz_min
@@ -1029,13 +1030,17 @@ class PeaksParametersFromSinglets:
     def __call__(self, seed=None) -> list[dict]:
         rng = self.rng_getter.get_rng(seed=seed)
 
-        number_of_signals = torch.randint(
-            low=self.number_of_signals_min,
-            high=min(self.number_of_signals_max, len(self.peaks_rows) + 1),
-            size=[],
-            generator=rng
-        )
-        selected_peaks = self.peaks_rows.sample(n=number_of_signals.item(), random_state=seed)
+        if self.use_all_singlets:
+            number_of_signals = len(self.peaks_rows)
+            selected_peaks = self.peaks_rows
+        else:
+            number_of_signals = torch.randint(
+                low=self.number_of_signals_min,
+                high=min(self.number_of_signals_max, len(self.peaks_rows) + 1),
+                size=[],
+                generator=rng
+            ).item()
+            selected_peaks = self.peaks_rows.sample(n=number_of_signals, random_state=seed)
 
         multiplet_data = {}
         # position
@@ -1045,12 +1050,12 @@ class PeaksParametersFromSinglets:
             multiplet_data[PeaksParametersNames.position_hz.value] = random_uniform_vector(self.position_hz_min, self.position_hz_max, size=len(selected_peaks))
         # width
         if self.use_original_width:
-            multiplet_data[PeaksParametersNames.halfwidth_hz.value] = (0.5 if self.convert_width_to_halfwidth else 1.)*torch.tensor(selected_peaks["width_hz"].values, dtype=torch.float32) * random_uniform_vector(self.width_factor_min, self.width_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.width_hz_change_min, self.width_hz_change_max, size=len(selected_peaks))
+            multiplet_data[PeaksParametersNames.halfwidth_hz.value] = torch.clamp((0.5 if self.convert_width_to_halfwidth else 1.)*torch.tensor(selected_peaks["width_hz"].values, dtype=torch.float32) * random_uniform_vector(self.width_factor_min, self.width_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.width_hz_change_min, self.width_hz_change_max, size=len(selected_peaks)), 0., None)
         else:
             multiplet_data[PeaksParametersNames.halfwidth_hz.value] = random_loguniform_vector(self.width_hz_min, self.width_hz_max, size=len(selected_peaks))
         # height
         if self.use_original_height:
-            multiplet_data[PeaksParametersNames.height.value] = torch.tensor(selected_peaks["height"].values, dtype=torch.float32) * random_uniform_vector(self.height_factor_min, self.height_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.height_change_min, self.height_change_max, size=len(selected_peaks))
+            multiplet_data[PeaksParametersNames.height.value] = torch.clamp(torch.tensor(selected_peaks["height"].values, dtype=torch.float32) * random_uniform_vector(self.height_factor_min, self.height_factor_max, size=len(selected_peaks)) + random_uniform_vector(self.height_change_min, self.height_change_max, size=len(selected_peaks)), 0., None)
         else:
             multiplet_data[PeaksParametersNames.height.value] = random_loguniform_vector(self.height_min, self.height_max, size=len(selected_peaks))
         # gaussian fraction
