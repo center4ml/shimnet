@@ -1,4 +1,5 @@
 import torch
+from collections import OrderedDict
 
 # class ConvEncoder(torch.nn.Module):
 #     def __init__(self, hidden_dim=64, output_dim=None, dropout=0, kernel_size=7):
@@ -56,7 +57,7 @@ def get_activation(activation_name: str) -> torch.nn.Module:
 
 
 class ConvEncoder(torch.nn.Module):
-    def __init__(self, hidden_dim=64, output_dim=None, input_dim=1, dropout=0, kernel_size=7, activation="relu"):
+    def __init__(self, hidden_dim=64, output_dim=None, input_dim=1, dropout=0, kernel_size=7, activation="relu", last_activation=True):
         super().__init__()
         if output_dim is None:
             output_dim = hidden_dim
@@ -70,17 +71,20 @@ class ConvEncoder(torch.nn.Module):
             torch.nn.Conv1d(hidden_dim, hidden_dim, kernel_size),
             get_activation(activation),
             torch.nn.Dropout(dropout),
-            torch.nn.Conv1d(hidden_dim, output_dim, kernel_size),
-            get_activation(activation),
-            torch.nn.Dropout(dropout),
+            torch.nn.Conv1d(hidden_dim, output_dim, kernel_size)
         ]
-        self.net = torch.nn.Sequential(*layers)
+        if last_activation:
+            layers.append(
+            get_activation(activation)
+            )
+        layers.append(torch.nn.Dropout(dropout))
+        self.net = torch.nn.Sequential(*layers)    
 
     def forward(self, feature):
         return self.net(feature)
 
 class ConvDecoder(torch.nn.Module):
-    def __init__(self, input_dim=None, hidden_dim=64, output_dim=1, dropout=0, kernel_size=7, activation="relu", last_bias=True, last_activation=True):
+    def __init__(self, input_dim=None, hidden_dim=64, output_dim=1, dropout=0, kernel_size=7, activation="relu", last_bias=True, last_activation=False):
         super().__init__()
         if input_dim is None:
             input_dim = hidden_dim
@@ -159,15 +163,50 @@ class ShimNetWithSCRF(torch.nn.Module):
         decoder_hidden_dims=64
         ):
         super().__init__()
-        self.encoder = ConvEncoder(hidden_dim=encoder_hidden_dims, output_dim=bottleneck_dim, dropout=encoder_dropout)
+        self.encoder = ConvEncoder(hidden_dim=encoder_hidden_dims, output_dim=bottleneck_dim, dropout=encoder_dropout, last_activation=False)
         self.query = torch.nn.Parameter(torch.empty(1, 1, bottleneck_dim))
         torch.nn.init.xavier_normal_(self.query)
 
-        self.decoder = ConvDecoder(input_dim=2*bottleneck_dim, hidden_dim=decoder_hidden_dims)
+        self.decoder = ConvDecoder(input_dim=2*bottleneck_dim, hidden_dim=decoder_hidden_dims, last_activation=False)
         
         self.rensponse_length = rensponse_length
         self.response_head = ResponseHead(bottleneck_dim, rensponse_length, resnponse_head_dims)
+
+        self.EncoderLegacyNameMapping = {
+            "conv4": "net.0",
+            "conv3": "net.3",
+            "conv2": "net.6",
+            "conv1": "net.9",
+        }
+        self.DecoderLegacyNameMapping = {
+            "convTranspose1": "net.0",
+            "convTranspose2": "net.3",
+            "convTranspose3": "net.6",
+            "convTranspose4": "net.9",
+        }
+
         
+    def load_state_dict(self, state_dict, strict=True):
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            k_splitted = k.split(".")
+            if k_splitted[0] == "encoder":
+                if k_splitted[1] in self.EncoderLegacyNameMapping:
+                    k_splitted[1] = self.EncoderLegacyNameMapping[k_splitted[1]]
+                    new_key = ".".join(k_splitted)
+                else:
+                    new_key = k
+            elif k_splitted[0] == "decoder":
+                if k_splitted[1] in self.DecoderLegacyNameMapping:
+                    k_splitted[1] = self.DecoderLegacyNameMapping[k_splitted[1]]
+                    new_key = ".".join(k_splitted)
+                else:
+                    new_key = k
+            else:
+                new_key = k
+            new_state_dict[new_key] = v
+        super().load_state_dict(new_state_dict, strict=strict)
+
     def forward(self, feature):                                        #(samples,   1, 2048)
         feature = self.encoder(feature)                                #(samples,  64, 2042)
         energy = self.query @ feature                                  #(samples,   1, 2024)
