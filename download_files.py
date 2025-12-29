@@ -27,7 +27,32 @@ ALL_FILES_TO_DOWNLOAD = {
         "url": "https://drive.google.com/uc?export=download&id=1QGvV-Au50ZxaP1vFsmR_auI299Dw-Wrt",
         "destination": "data/multiplets_10000_parsed.txt"
     }],
-    "development": []
+    "development": [
+        { #https://drive.google.com/file/d/1_KzJ1fj69engsbh1PZJMdvVn-Nn14PgI/view?usp=drive_link
+            "url": "https://drive.google.com/uc?export=download&id=1_KzJ1fj69engsbh1PZJMdvVn-Nn14PgI",
+            "destination": "weights/23-0_2501.pt"
+        },
+        { # https://drive.google.com/file/d/1R8Okf82FU5IrBZUyw9ZFjz8TOwjajqjy/view?usp=sharing
+            "url": "https://drive.google.com/uc?export=download&id=1R8Okf82FU5IrBZUyw9ZFjz8TOwjajqjy",
+            "destination": "weights/23-1_3907.pt"
+        },
+        { # https://drive.google.com/file/d/1PpAJggtG5xtssqop-s7Igbtr_StjH4i4/view?usp=sharing
+            "url": "https://drive.google.com/uc?export=download&id=1PpAJggtG5xtssqop-s7Igbtr_StjH4i4",
+            "destination": "weights/23-end.pt"
+        },
+        { # https://drive.google.com/file/d/1tRzUatYyZNmkWFfgN7M_bZLBeowoh3Aq/view?usp=sharing
+            "url": "https://drive.google.com/uc?export=download&id=1tRzUatYyZNmkWFfgN7M_bZLBeowoh3Aq",
+            "destination": "weights/24-end.pt"
+        },
+        { #https://drive.google.com/file/d/1nsep0IGd5OUG_EMBwL55s-1TxQxyABEL/view?usp=sharing
+            "url": "https://drive.google.com/uc?export=download&id=1nsep0IGd5OUG_EMBwL55s-1TxQxyABEL",
+            "destination": "weights/25-end.pt"
+        },
+        { #https://drive.google.com/file/d/1WBVeZHuvC-FOTSJWla_gDNQjDmXn2h_n/view?usp=sharing
+            "url": "https://drive.google.com/uc?export=download&id=1WBVeZHuvC-FOTSJWla_gDNQjDmXn2h_n",
+            "destination": "weights/26-end.pt"
+        }
+    ]
 }
 
 def parse_args():
