@@ -28,3 +28,4 @@ notebooks/token.pickle
 # local
 debugging/
 run_trainings.sh
+.vscode/

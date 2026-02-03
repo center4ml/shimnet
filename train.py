@@ -179,7 +179,7 @@ def get_loss_functions(config):
 
 loss_calculation = get_loss_functions(config)
 
-print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss  MultiscaleCleanLoss")
+print("BatchInStage     Loss     AvgLoss   CleanLoss  RespLoss  NoisedLoss")
 for i_stage, training_stage in enumerate(config.training):
     if model_weights_file.is_file():
         model.load_state_dict(torch.load(model_weights_file, weights_only=True))
