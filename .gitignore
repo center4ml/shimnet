@@ -8,7 +8,7 @@ runs/
 # data files
 **/data/*
 # but not some peak lists
-!/data/multiplets_lists/
+!/data/reaction_monitoring/
 # data in subdirectories
 
 # typically weights and data

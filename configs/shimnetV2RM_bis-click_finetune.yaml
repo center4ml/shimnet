@@ -99,8 +99,8 @@ data:
       gaussian_fraction_change_min: -0.3
       gaussian_fraction_change_max: 0.3
       singlets_files:
-      - data/eksperyment2_bis-click/processed_peaks_lists/poReakcji_bis-click_filtered3.1Hz_squeezed.csv
-      - data/eksperyment2_bis-click/processed_peaks_lists/substraty_bis-click_filtered3.1Hz_squeezed.csv
+      - data/reaction_monitoring/bis-click_substrats_filtered3.1Hz_squeezed.csv
+      - data/reaction_monitoring/bis-click_post-reaction-mixture_filtered3.1Hz_squeezed.csv
   response_generator:
     _target_: shimnet.generators.ResponseGenerator
     pad_to: 81
@@ -125,7 +125,7 @@ data:
 logging:
   step: 1000000
   num_plots: 10
-  # uncomment and set paths to include extra spectra for evaluation (e.g. real experimental spectra)
+  # uncomment and set paths to include extra spectra for mid-training inference (e.g. real experimental spectra)
   # extra_spectra_for_evaluation:
   # - path: ../path/to/spectrum1.csv
   # - path: ../path/to/spectrum2.csv

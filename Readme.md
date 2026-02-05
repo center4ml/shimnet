@@ -3,9 +3,14 @@ ShimNet is a data-driven AI solution to improve high-resolution nuclear magnetic
 distorted by the inhomogeneous magnetic field (less than optimal shimming). To use it, the experimental training data has to be collected (see **Data collection** below).
 Example data can also be downloaded (see below). 
 
-Paper: [ShimNet: A neural network for post-acquisition improvement of NMR spectra distorted by magnetic-field inhomogeneity](https://doi.org/10.1021/acs.jpcb.5c02632)
+*ShimNet* paper (2025): [ShimNet: A neural network for post-acquisition improvement of NMR spectra distorted by magnetic-field inhomogeneity](https://doi.org/10.1021/acs.jpcb.5c02632)
 
-Web service: [![Open in Hugging Face Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-md.svg)](https://huggingface.co/spaces/NMR-CeNT-UW/ShimNet)
+Code version used in *ShimNet* paper (2025): https://github.com/center4ml/shimnet/releases/tag/JChemPhys_submission_2025
+
+Web service: [![Open in Hugging Face Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-md.svg)](https://huggingface.co/spaces/NMR-CeNT-UW/ShimNet-development)
+
+**Reaction Monitoring** After fine-tuning, ShimNet may be used to ..
+
 
 ## Installation
 
@@ -23,30 +28,22 @@ In both CPU-only and GPU versions you may also install GUI (graphical user inter
   - without GUI: `pip install .[gpu]`
 
 ## Usage
-To correct spectra presented in the paper:
+To correct spectra with pre-trained weights:
 1. download weights (model parameters):
 ```
 python download_files.py
 ```
-or directly from [Google Drive 700MHz](https://drive.google.com/uc?export=download&id=17fTNWl7YW6mPbbZWga0EfdoF_6S8fCke) and [Google Drive 600MHz](https://drive.google.com/uc?export=download&id=1_VxOpFGJcFsOa5DHOW2GJbP8RvHCmC1N) and place it in `weights` directory
+or directly from [Google Drive (ShimNetV2 600MHz)](https://drive.google.com/uc?export=download&id=1643Il3qgCupY0n8Mar6WBc2WVuoQRzie) and place it in `weights` directory
 
-
-2. : run correction (e.g. `Azarone_20ul_700MHz.csv`):
+2. : run correction (e.g. `Azarone_X_supressed_600MHz.csv`):
 ```
-python predict.py sample_data/Azarone_20ul_700MHz.csv -o output --config configs/shimnet_700.yaml --weights weights/shimnet_700MHz.pt
+python predict.py sample_data/Azarone_X_supressed_600MHz.csv -o output --config configs/shimnetV2_600.yaml --weights weights/shimnetV2_600MHz.pt
 ```
-The output will be `output/Azarone_20ul_700MHz_processed.csv` file
+The output will be `output/Azarone_X_supressed_600MHz.csv_processed.csv` file
 
 Multiple files may be processed using "*" syntax:
 ```
-python predict.py sample_data/*700MHz.csv -o output --config configs/shimnet_700.yaml --weights weights/shimnet_700MH
-z.pt
-```
-
-For 600 MHz data use `--config configs/shimnet_600.yaml` and  `--weights weights/shimnet_600MHz.pt`, e.g.:
-
-```
-python predict.py sample_data/CresolRed_after_styrene_600MHz.csv -o output --config configs/shimnet_600.yaml --weights weights/shimnet_600MHz.pt
+python predict.py sample_data/*600MHz.csv -o output --config configs/shimnetV2_600.yaml --weights weights/shimnetV2_600MHz.pt
 ```
 
 ### input format
@@ -81,7 +78,10 @@ To collect ShimNet training data use Python script (sweep_shims_lineshape_Z1Z2.p
    ```
    The spectrometer will start collecting spectra
 
-### SCRF extraction
+### Shim Coil Response Functions (SCRF)
+
+#### 1. Extraction
+
 Shim Coil Response Functions (SCRF) should be extracted from the spectra with `extract_scrf_from_fids.py` script.
 ```
 python extract_scrf_from_fids.py
@@ -111,6 +111,10 @@ dic, data = ng.varian.read(varian_fid_path)
 ```
 (see nmrglue package documentation for details)
 
+#### 2. Smoothing
+
+Exctracted response functions may be noisy. In order to increase robustness, smoothing is recommended. Example code is stored in `preprocessing/smooth_SCRFs.ipynb`
+
 ### Training
 
 1. Download multiplets database:
@@ -120,29 +124,42 @@ dic, data = ng.varian.read(varian_fid_path)
 2. Configure run:
   - create a run directory, e.g. `runs/my_lab_spectrometer_2025`
   - create a configuration file:
-    1. copy `configs/shimnet_template.py` to the run directory and rename it to `config.yaml`
+    1. copy `configs/shimnetV2_600.yaml` to the run directory and rename it to `config.yaml`
        ```bash
-       cp configs/shimnet_template.py runs/my_lab_spectrometer_2025/config.yaml
+       cp configs/configs/shimnetV2_600.yaml runs/my_lab_spectrometer_2025/config.yaml
        ```
-    2. edit the SCRF in path in the config file:
+    2. replace response function paths in the config file:
        ```yaml
-         response_functions_files:
-         - path/to/srcf_file
-       ```
+        response_files:
+          - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-1-1.pt
+          - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-2-1.pt
+          - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-4-1.pt
+          - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-3-3-1.pt
+        ```
        e.g.
        ```yaml
-         response_functions_files:
+         response_files:
          - ../../sample_run/scrf_61.pt
        ```
-    3. adjust spectrometer frequency step `frq_step` to match your data (spectrometer range in Hz divided by number of points in spectrum):
+    3. adjust spectrometer frequency step `frq_step` in metadata to match your data (spectrometer range in Hz divided by number of points in spectrum):
         ```yaml
-        frq_step: 0.34059797
+        frq_step: 0.30048
         ```
     4. adjust spectromer frequency in the metadata
         ```yaml
         metadata: # additional metadata, not used in the training process
           spectrometer_frequency: 700.0 # MHz
         ```
+    5. You may add experimental spectra as `.csv` which you want to monitor during training (to avoid overfitting):
+      ```yaml
+        extra_spectra_for_evaluation:
+        - path: ../path/to/spectrum1.csv
+        - path: ../path/to/spectrum2.csv
+        ```
+    6. If you want to use the pre-trained model as the starting point, copy weights to the run directory and rename to `model.pt`
+    ```bash
+    cp weights/shimnetV2_600MHz.pt runs/my_lab_spectrometer_2025/model.pt
+    ```
 3. Run training:
     ```
     python train.py runs/my_lab_spectrometer_2025
@@ -155,37 +172,6 @@ dic, data = ng.varian.read(varian_fid_path)
     ```
     python predict.py my_sample1.csv -o my_output --config runs/my_lab_spectrometer_2025/config.yaml --weights runs/my_lab_spectrometer_2025/model.pt
     ```
-
-## Repeat training on our data
-
-If you want to train the network using the calibration data from our paper, follow the procedure below.
-
-1. Download multiplets database and our SCRF files:
-    ```
-    python download_files.py --multiplets --SCRF --no-weights
-    ```
-    or directly download from Google Drive and store in `data/` directory: [Response Functions 600MHz](https://drive.google.com/file/d/1J-DsPtaITXU3TFrbxaZPH800U1uIiwje/view?usp=sharing), [Response Functions 700MHz](https://drive.google.com/file/d/113al7A__yYALx_2hkESuzFIDU3feVtNY/view?usp=sharing), [Multiplets data](https://drive.google.com/file/d/1QGvV-Au50ZxaP1vFsmR_auI299Dw-Wrt/view?usp=sharing)
-
-2. Configure run
-    - For 600MHz spectrometer:
-      ```bash
-      mkdir -p runs/repeat_paper_training_600MHz
-      cp configs/shimnet_600.yaml runs/repeat_paper_training_600MHz/config.yaml
-      ```
-    - For 700 MHz spectrometer:
-      ```bash
-      mkdir -p runs/repeat_paper_training_700MHz
-      cp configs/shimnet_700.yaml runs/repeat_paper_training_700MHz/config.yaml
-      ```
-3. Run training:
-    ```
-    python train.py runs/repeat_paper_training_600MHz
-    ```
-    or
-    ```
-    python train.py runs/repeat_paper_training_700MHz
-    ```
-    Training results will appear in `runs/repeat_paper_training_600MHz` or `runs/repeat_paper_training_700MHz` directory.
 
 ## GUI
 
@@ -228,3 +214,32 @@ docker run -it -p 7860:7860 shimnetgui
 ```
 
 The GUI should be working at `http://127.0.0.1:7860`
+
+## Reaction monitoring
+
+### Data preparation
+
+1. collect well-shimed spectra
+
+2. extract peaks
+
+3. store peaks to file as ...
+
+### Training
+
+1. Prepare config:
+
+```
+mkdir -p runs/mono-click_finetune
+cp configs/shimnetV2RM_mono-click_finetune.yaml runs/mono-click_finetune/config.yaml
+```
+
+2. Copy weights
+```
+cp weights/shimnetV2_600MHz.pt runs/mono-click_finetune/model.pt
+```
+
+3. Train
+```
+python train.py runs/mono-click_finetune
+```
