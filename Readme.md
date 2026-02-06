@@ -9,7 +9,7 @@ Code version used in *ShimNet* paper (2025): https://github.com/center4ml/shimne
 
 Web service: [![Open in Hugging Face Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-md.svg)](https://huggingface.co/spaces/NMR-CeNT-UW/ShimNet-development)
 
-**Reaction Monitoring** After fine-tuning, ShimNet may be used to ..
+**Reaction Monitoring (ShimNetV2-RM)** After fine-tuning, ShimNet may be used to monitor reaction. The procedure is described in section [Reaction monitoring](##reaction-monitoring)
 
 
 ## Installation
@@ -124,11 +124,11 @@ Exctracted response functions may be noisy. In order to increase robustness, smo
 2. Configure run:
   - create a run directory, e.g. `runs/my_lab_spectrometer_2025`
   - create a configuration file:
-    1. copy `configs/shimnetV2_600.yaml` to the run directory and rename it to `config.yaml`
+    - copy `configs/shimnetV2_600.yaml` to the run directory and rename it to `config.yaml`
        ```bash
        cp configs/configs/shimnetV2_600.yaml runs/my_lab_spectrometer_2025/config.yaml
        ```
-    2. replace response function paths in the config file:
+    - replace response function paths in the config file:
        ```yaml
         response_files:
           - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-1-1.pt
@@ -141,22 +141,22 @@ Exctracted response functions may be noisy. In order to increase robustness, smo
          response_files:
          - ../../sample_run/scrf_61.pt
        ```
-    3. adjust spectrometer frequency step `frq_step` in metadata to match your data (spectrometer range in Hz divided by number of points in spectrum):
+    - adjust spectrometer frequency step `frq_step` in metadata to match your data (spectrometer range in Hz divided by number of points in spectrum):
         ```yaml
         frq_step: 0.30048
         ```
-    4. adjust spectromer frequency in the metadata
+    - adjust spectromer frequency in the metadata
         ```yaml
         metadata: # additional metadata, not used in the training process
           spectrometer_frequency: 700.0 # MHz
         ```
-    5. You may add experimental spectra as `.csv` which you want to monitor during training (to avoid overfitting):
-      ```yaml
-        extra_spectra_for_evaluation:
-        - path: ../path/to/spectrum1.csv
-        - path: ../path/to/spectrum2.csv
-        ```
-    6. If you want to use the pre-trained model as the starting point, copy weights to the run directory and rename to `model.pt`
+    - you may add experimental spectra as `.csv` which you want to monitor during training (to avoid overfitting):
+        ```yaml
+          extra_spectra_for_evaluation:
+          - path: ../path/to/spectrum1.csv
+          - path: ../path/to/spectrum2.csv
+          ```
+  - If you want to use the pre-trained model as the starting point, copy weights to the run directory and rename to `model.pt`
     ```bash
     cp weights/shimnetV2_600MHz.pt runs/my_lab_spectrometer_2025/model.pt
     ```
@@ -219,27 +219,34 @@ The GUI should be working at `http://127.0.0.1:7860`
 
 ### Data preparation
 
-1. collect well-shimed spectra
+1. Collect well-shimed spectra, e.g. of substratc and post reaction mixture
 
-2. extract peaks
+2. Extract peaks with MestreNova
 
-3. store peaks to file as ...
+3. Store peaks data in file(-s) as in `data/reaction_monitoring`. Notebook `preprocessing/parse_mnova_data.ipynb` may be a useful reference for creating dedicated code.
 
 ### Training
 
 1. Prepare config:
+  - Create the run dir and config:
+    ```
+    mkdir -p runs/mono-click_finetune
+    cp configs/shimnetV2RM_mono-click_finetune.yaml runs/mono-click_finetune/config.yaml
+    ```
+  - Adjust paths to peak data, if needed:
+    ```yaml
+          singlets_files:
+          - data/reaction_monitoring/mono-click_substrats-and-post-reaction-mixture_filtered_squeezed.csv
+    ```
 
-```
-mkdir -p runs/mono-click_finetune
-cp configs/shimnetV2RM_mono-click_finetune.yaml runs/mono-click_finetune/config.yaml
-```
+2. In order to repeat reaction monitoring training with the same settings as described in our report, shim coil response functions needs to be smoothed, as described in [Smoothing](####2.-smoothing) section
 
-2. Copy weights
-```
-cp weights/shimnetV2_600MHz.pt runs/mono-click_finetune/model.pt
-```
+3. Copy weights to use the "general" ShimNetV2 as the starting point:
+  ```
+  cp weights/shimnetV2_600MHz.pt runs/mono-click_finetune/model.pt
+  ```
 
-3. Train
-```
-python train.py runs/mono-click_finetune
-```
+4. Run training:
+  ```
+  python train.py runs/mono-click_finetune
+  ```

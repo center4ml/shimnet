@@ -1,3 +1,78 @@
+training:
+  - batch_size: 256
+    learning_rate: 0.0001
+    max_iters: 25600000
+  - batch_size: 256
+    learning_rate: 0.00002
+    max_iters: 12800000
+losses:
+  clean:
+    function: mae
+    weight: 1.0
+  noised:
+    function: mae
+    weight: 1.0
+  response:
+    function: mae
+    weight: 1.0
+logging:
+  step: 1000000
+  num_plots: 32
+  # uncomment and set paths to include extra spectra for mid-training inference (e.g. real experimental spectra)
+  # extra_spectra_for_evaluation:
+  # - path: ../path/to/spectrum1.csv
+  # - path: ../path/to/spectrum2.csv
+metadata:
+  frq_step: 0.30048
+  spectrometer_frequency: 600.0
+data:
+  _target_: shimnet.generators.Generator
+  include_response_function: true
+  seed: null # null means random seed
+  batch_size: null # to be set in training script
+  clean_spectra_generator:
+    _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
+    pixels: 2048
+    frq_step: ${metadata.frq_step}
+    peaks_parameter_generator:
+        _target_: shimnet.generators.PeaksParameterDataGenerator
+        atom_groups_data_file: data/multiplets_10000_parsed.txt
+        number_of_signals_min: 2
+        number_of_signals_max: 5
+        relative_frequency_min: -0.4
+        relative_frequency_max: 0.4
+        spectrum_width_min: 0.2
+        spectrum_width_max: 1.0
+        relative_width_min: 1.0
+        relative_width_max: 2.0
+        relative_height_min: 0.5
+        relative_height_max: 4
+        thf_min: 0.5
+        thf_max: 2
+        trf_min: 0.0
+        trf_max: 1.0
+        multiplicity_j1_min: 0.0
+        multiplicity_j1_max: 15
+        multiplicity_j2_min: 0.0
+        multiplicity_j2_max: 15
+  response_generator:
+    _target_: shimnet.generators.ResponseGenerator
+    response_function_library:
+      _target_: shimnet.generators.ResponseLibrary
+      response_files:
+        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-1-1.pt
+        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-2-1.pt
+        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-4-1.pt
+        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-3-3-1.pt
+    pad_to: 81
+    response_function_stretch_min: 0.8
+    response_function_stretch_max: 1.5
+    response_function_noise: 0.0
+    flip_response_function: false
+  noise_generator:
+    _target_: shimnet.generators.NoiseGenerator
+    spectrum_noise_min: 0.0
+    spectrum_noise_max: 0.015625
 model:
   _target_: shimnet.models.ShimnetModular
   encoder:
@@ -58,81 +133,5 @@ model:
     kernel_size: 7
     last_bias: false
     last_activation: false
-training:
-#- batch_size: 64
-#learning_rate: 0.001
-#max_iters: 1600000
-- batch_size: 256
-  learning_rate: 0.0001
-  max_iters: 25600000
-- batch_size: 256
-  learning_rate: 0.00002
-  max_iters: 12800000
-losses:
-  clean:
-    function: mae
-    weight: 1.0
-  noised:
-    function: mae
-    weight: 1.0
-  response:
-    function: mae
-    weight: 1.0
-data:
-  _target_: shimnet.generators.Generator
-  include_response_function: true
-  seed: null # null means random seed
-  batch_size: null # to be set in training script
-  clean_spectra_generator:
-    _target_: shimnet.generators.TheoreticalMultipletSpectraGenerator
-    pixels: 2048
-    frq_step: ${metadata.frq_step}
-    peaks_parameter_generator:
-        _target_: shimnet.generators.PeaksParameterDataGenerator
-        atom_groups_data_file: data/multiplets_10000_parsed.txt
-        number_of_signals_min: 2
-        number_of_signals_max: 5
-        relative_frequency_min: -0.4
-        relative_frequency_max: 0.4
-        spectrum_width_min: 0.2
-        spectrum_width_max: 1.0
-        relative_width_min: 1.0
-        relative_width_max: 2.0
-        relative_height_min: 0.5
-        relative_height_max: 4
-        thf_min: 0.5
-        thf_max: 2
-        trf_min: 0.0
-        trf_max: 1.0
-        multiplicity_j1_min: 0.0
-        multiplicity_j1_max: 15
-        multiplicity_j2_min: 0.0
-        multiplicity_j2_max: 15
-  response_generator:
-    _target_: shimnet.generators.ResponseGenerator
-    response_function_library:
-      _target_: shimnet.generators.ResponseLibrary
-      response_files:
-        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-1-1.pt
-        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-2-1.pt
-        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-4-1.pt
-        - data/smoothed_scrf_kernels/scrf_81_600MHz_smoothed_1-3-3-1.pt
-    pad_to: 81
-    response_function_stretch_min: 0.8
-    response_function_stretch_max: 1.5
-    response_function_noise: 0.0
-    flip_response_function: false
-  noise_generator:
-    _target_: shimnet.generators.NoiseGenerator
-    spectrum_noise_min: 0.0
-    spectrum_noise_max: 0.015625
-logging:
-  step: 1000000
-  num_plots: 32
-  # uncomment and set paths to include extra spectra for mid-training inference (e.g. real experimental spectra)
-  # extra_spectra_for_evaluation:
-  # - path: ../path/to/spectrum1.csv
-  # - path: ../path/to/spectrum2.csv
-metadata:
-  frq_step: 0.30048
-  spectrometer_frequency: 600.0
+
+
