@@ -9,7 +9,7 @@ Code version used in *ShimNet* paper (2025): https://github.com/center4ml/shimne
 
 Web service: [![Open in Hugging Face Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-md.svg)](https://huggingface.co/spaces/NMR-CeNT-UW/ShimNet-development)
 
-**Reaction Monitoring (ShimNetV2-RM)** After fine-tuning, ShimNet may be used to monitor reaction. The procedure is described in section [Reaction monitoring](##reaction-monitoring)
+**Reaction Monitoring (ShimNetV2-RM)** After fine-tuning, ShimNet may be used to monitor reaction. The procedure is described in section [Reaction monitoring](#reaction-monitoring)
 
 
 ## Installation
@@ -239,14 +239,25 @@ The GUI should be working at `http://127.0.0.1:7860`
           - data/reaction_monitoring/mono-click_substrats-and-post-reaction-mixture_filtered_squeezed.csv
     ```
 
-2. In order to repeat reaction monitoring training with the same settings as described in our report, shim coil response functions needs to be smoothed, as described in [Smoothing](####2.-smoothing) section
+2. In order to repeat reaction monitoring training with the same settings as described in our report, shim coil response functions needs to be smoothed, as described in [Smoothing](#2.-smoothing) section
 
 3. Copy weights to use the "general" ShimNetV2 as the starting point:
-  ```
-  cp weights/shimnetV2_600MHz.pt runs/mono-click_finetune/model.pt
-  ```
+    ```
+    cp weights/shimnetV2_600MHz.pt runs/mono-click_finetune/model.pt
+    ```
 
 4. Run training:
-  ```
-  python train.py runs/mono-click_finetune
-  ```
+    ```
+    python train.py runs/mono-click_finetune
+    ```
+
+### Inference
+
+1. Download weights (if needed)
+    ```
+    python download_files.py
+    ```
+2. Correct spectrum. Example spectra from reaction monitoring are available in `sample_data/reaction_monitoring`
+    ```
+    python predict.py sample_data/reaction_monitoring/mono-click/monitoring/200.csv --config configs/shimnetV2RM_mono-click_finetune.yaml --weights weights/shimnetV2RM_mono-click_finetune.pt --output_dir output/mono-click
+    ```

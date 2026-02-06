@@ -17,7 +17,7 @@ ALL_FILES_TO_DOWNLOAD = {
     },
     { # https://drive.google.com/file/d/1VTvNXp-kpCF78G2ET_FldgV3s22jdTbz/view?usp=sharing
         "url": "https://drive.google.com/uc?export=download&id=1VTvNXp-kpCF78G2ET_FldgV3s22jdTbz",
-        "destination": "weights/sshimnetV2RM_mono-click_finetune.pt"
+        "destination": "weights/shimnetV2RM_mono-click_finetune.pt"
     },
     { # https://drive.google.com/file/d/16Ut1Zt2LuIr6GyzPq4DUwV4IeMrcJt6f/view?usp=sharing
         "url": "https://drive.google.com/uc?export=download&id=16Ut1Zt2LuIr6GyzPq4DUwV4IeMrcJt6f",
