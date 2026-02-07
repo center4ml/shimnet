@@ -219,9 +219,9 @@ The GUI should be working at `http://127.0.0.1:7860`
 
 ### Data preparation
 
-1. Collect well-shimed spectra, e.g. of substratc and post reaction mixture
+1. Collect well-shimed spectra, e.g. of pre- and post- reaction mixture
 
-2. Extract peaks with MestreNova
+2. Fit peaks with Lorentzian/Gaussian curves e.g. using MestreNova
 
 3. Store peaks data in file(-s) as in `data/reaction_monitoring`. Notebook `preprocessing/parse_mnova_data.ipynb` may be a useful reference for creating dedicated code.
 
@@ -239,7 +239,7 @@ The GUI should be working at `http://127.0.0.1:7860`
           - data/reaction_monitoring/mono-click_substrats-and-post-reaction-mixture_filtered_squeezed.csv
     ```
 
-2. In order to repeat reaction monitoring training with the same settings as described in our report, shim coil response functions needs to be smoothed, as described in [Smoothing](#2.-smoothing) section
+2. In order to repeat reaction monitoring training with the same settings as described in our report, shim coil response functions need to be smoothed, as described in [Smoothing](#2.-smoothing) section
 
 3. Copy weights to use the "general" ShimNetV2 as the starting point:
     ```
