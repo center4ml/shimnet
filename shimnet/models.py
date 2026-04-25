@@ -314,10 +314,19 @@ class Predictor:
         if weights_file is not None:
             self.model.load_state_dict(torch.load(weights_file, map_location='cpu', weights_only=True))
 
-    def __call__(self, nsf_frq):
+    def __call__(self, spectrum):
+        if spectrum.ndim == 2:
+            batch_mode = True
+            model_input = spectrum[:, None, :]
+        else:
+            batch_mode = False
+            model_input = spectrum[None, None, :]
         with torch.no_grad():
-            msf_frq = self.model(nsf_frq[None, None])["denoised"]
-        return msf_frq[0, 0]
+            denoised_spectrum = self.model(model_input)["denoised"]
+        if batch_mode:
+            return denoised_spectrum[:, 0, :]
+        else:
+            return denoised_spectrum[0, 0]
 
 if __name__ == "__main__":
     encoder_hidden_dims = 64
